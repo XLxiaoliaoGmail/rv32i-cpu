@@ -25,10 +25,12 @@ module _tb_riscv_core();
     // 检查是否到达程序结束指令
     always @(posedge clk) begin
         if (instruction == 32'h0000006F) begin  // JAL x0, 0 指令
-            $display("Program execution completed, result stored in x1 register");
+            $display("Program execution completed");
+            #100;
             $stop;
         end
     end
+
 
     // 生成复位信号
     initial begin

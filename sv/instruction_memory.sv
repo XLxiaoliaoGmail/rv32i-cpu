@@ -9,7 +9,7 @@ import _riscv_defines::*;
 );
 
     // 指令存储器，大小为4KB
-    logic [7:0] mem [4096];
+    logic [7:0] mem [INSTR_MEM_SIZE];
 
     // 读取指令（小端序）
     assign instruction = {
@@ -23,32 +23,21 @@ import _riscv_defines::*;
     int next_instr_addr;
 
     // 复位时初始化指针
+    logic [31:0] temp_mem[0:INSTR_MEM_SIZE/4-1];
+    
+    // 复位时初始化内存
     initial begin
-        next_instr_addr = 0;
-
-        // 初始化寄存器
-        // x1 用于存储结果
-        // x2 用于存储当前数字
-        // x3 用于存储最大值10
-        add_instruction(32'h00000093);      // addi x1, x0, 0    # x1 = 0 (结果)
-        add_instruction(32'h00100113);      // addi x2, x0, 1    # x2 = 1 (计数器)
-        add_instruction(32'h00A00193);      // addi x3, x0, 10   # x3 = 10 (最大值)
-
-        // 循环开始
-        add_instruction(32'h002080B3);      // add x4, x1, x2    # x4 = x1 + x2
-        // add_instruction(32'h00000093);      // addi x1, x0, 0    # x1 = 0 (结果)
+        // 从文件加载32位指令到临时数组
+        $readmemh("./sv/programs/load_store_test.mem", temp_mem);
         
-        // 计数器加1
-        add_instruction(32'h00110113);      // addi x2, x2, 1    # x2 = x2 + 1
-        
-        // 将x4的值复制到x1
-        add_instruction(32'h00040093);      // addi x1, x4, 0    # x1 = x4 + 0
-        
-        // 比较是否达到最大值
-        add_instruction(32'hfe311ce3);      // bne x2, x3, -4    # 如果x2!=x3,跳回循环开始
-
-        // 程序结束，死循环
-        add_instruction(32'h0000006F);      // jal x0, 0         # 死循环
+        // 将32位指令拆分为8位存储到mem中
+        for (int i = 0; i < INSTR_MEM_SIZE/4; i++) begin
+            // 小端序存储 (Little Endian)
+            mem[i*4+0] = temp_mem[i][7:0];  
+            mem[i*4+1] = temp_mem[i][15:8]; 
+            mem[i*4+2] = temp_mem[i][23:16];
+            mem[i*4+3] = temp_mem[i][31:24];
+        end
     end
 
     // 添加指令的task

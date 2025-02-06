@@ -3,7 +3,8 @@ package _riscv_defines;
     parameter DATA_WIDTH = 32;
     parameter ADDR_WIDTH = 32;
     parameter REG_ADDR_WIDTH = 5;
-    
+    parameter INSTR_MEM_SIZE = 4096;
+
     // 操作码定义
     parameter OP_R_TYPE  = 7'b0110011;  // R类型指令
     parameter OP_I_TYPE  = 7'b0010011;  // I类型指令

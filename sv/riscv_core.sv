@@ -39,6 +39,8 @@ import _riscv_defines::*;
     logic                      alu_src;         // ALU operand 2 select signal
     logic [1:0]                mem_to_reg;      // Write back data select signal
     alu_op_t                   alu_op;          // ALU operation type
+    logic [1:0]                size_type;       // Memory access size type
+    logic                      sign_ext;        // Memory access sign extension
 
     // PC update logic
     assign pc_plus4 = current_pc + 4;
@@ -111,7 +113,9 @@ import _riscv_defines::*;
         .jump      (jump),
         .alu_src   (alu_src),
         .mem_to_reg(mem_to_reg),
-        .alu_op    (alu_op)
+        .alu_op    (alu_op),
+        .size_type (size_type),
+        .sign_ext  (sign_ext)
     );
 
     // Register file
@@ -147,12 +151,14 @@ import _riscv_defines::*;
 
     // Data memory
     data_memory dmem (
-        .clk    (clk),
-        .rst_n  (rst_n),
-        .we     (mem_write),
-        .addr   (alu_result),
-        .wdata  (rs2_data),
-        .rdata  (mem_rdata)
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .we       (mem_write),
+        .addr     (alu_result),
+        .wdata    (rs2_data),
+        .size_type(size_type),
+        .sign_ext (sign_ext),
+        .rdata    (mem_rdata)
     );
 
 endmodule 

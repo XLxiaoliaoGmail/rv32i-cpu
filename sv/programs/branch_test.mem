@@ -1,0 +1,38 @@
+// Branch Instructions Test Program
+// Test beq, bne, blt, bge, bltu, bgeu
+00500093    // addi x1, x0, 5      # x1 = 5
+00A00113    // addi x2, x0, 10     # x2 = 10
+00300193    // addi x3, x0, 3      # x3 = 3
+00500213    // addi x4, x0, 5      # x4 = 5 (same as x1)
+
+// Test beq (should branch)
+00408463    // beq x1, x4, 8       # if(x1 == x4) PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00100293    // addi x5, x0, 1      # x5 = 1 (should execute)
+
+// Test bne (should branch)
+00209463    // bne x1, x2, 8       # if(x1 != x2) PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00200313    // addi x6, x0, 2      # x6 = 2 (should execute)
+
+// Test blt (should branch)
+0020C463    // blt x1, x2, 8       # if(x1 < x2) PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00300393    // addi x7, x0, 3      # x7 = 3 (should execute)
+
+// Test bge (should branch)
+0040D463    // bge x1, x4, 8       # if(x1 >= x4) PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00400413    // addi x8, x0, 4      # x8 = 4 (should execute)
+
+// Test bltu (should branch)
+0020E463    // bltu x1, x2, 8      # if(x1 < x2) unsigned PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00500493    // addi x9, x0, 5      # x9 = 5 (should execute)
+
+// Test bgeu (should branch)
+0040F463    // bgeu x1, x4, 8      # if(x1 >= x4) unsigned PC += 8
+FFF00593    // addi x11, x0, -1    # x11 = 0xffffffff (should skip)
+00600513    // addi x10, x0, 6     # x10 = 6 (should execute)
+
+0000006F    // jal x0, 0           # 死循环 

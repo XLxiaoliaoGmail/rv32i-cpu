@@ -13,7 +13,9 @@ import _riscv_defines::*;
     output logic           jump,           // 添加jump信号
     output logic           alu_src,
     output logic [1:0]     mem_to_reg,
-    output alu_op_t        alu_op
+    output alu_op_t        alu_op,
+    output logic [1:0]     size_type,     // 00: byte, 01: halfword, 10: word
+    output logic           sign_ext       // 1: 进行符号扩展, 0: 零扩展
 );
 
     always_comb begin
@@ -26,6 +28,8 @@ import _riscv_defines::*;
         alu_src    = 1'b0;
         mem_to_reg = 2'b00;
         alu_op     = ALU_ADD;
+        size_type  = 2'b10;   // 默认为word
+        sign_ext   = 1'b1;    // 默认进行符号扩展
 
         unique case (opcode)
             // R类型指令
@@ -48,12 +52,14 @@ import _riscv_defines::*;
                 reg_write = 1'b1;
                 alu_src   = 1'b1;
                 unique case (funct3)
-                    3'b000: alu_op = ALU_ADD;
-                    3'b111: alu_op = ALU_AND;
-                    3'b110: alu_op = ALU_OR;
-                    3'b100: alu_op = ALU_XOR;
-                    3'b010: alu_op = ALU_SLT;
-                    3'b011: alu_op = ALU_SLTU;
+                    3'b000: alu_op = ALU_ADD;  // ADDI
+                    3'b111: alu_op = ALU_AND;  // ANDI
+                    3'b110: alu_op = ALU_OR;   // ORI
+                    3'b100: alu_op = ALU_XOR;  // XORI
+                    3'b010: alu_op = ALU_SLT;  // SLTI
+                    3'b011: alu_op = ALU_SLTU; // SLTIU
+                    3'b001: alu_op = ALU_SLL;  // SLLI
+                    3'b101: alu_op = (funct7[5]) ? ALU_SRA : ALU_SRL; // SRAI/SRLI
                 endcase
             end
 
@@ -63,6 +69,34 @@ import _riscv_defines::*;
                 mem_read   = 1'b1;
                 alu_src    = 1'b1;
                 mem_to_reg = 2'b01;
+                
+                // 根据funct3确定加载类型
+                unique case (funct3)
+                    3'b000: begin  // LB
+                        size_type = 2'b00;  // byte
+                        sign_ext  = 1'b1;   // 符号扩展
+                    end
+                    3'b001: begin  // LH
+                        size_type = 2'b01;  // halfword
+                        sign_ext  = 1'b1;   // 符号扩展
+                    end
+                    3'b010: begin  // LW
+                        size_type = 2'b10;  // word
+                        sign_ext  = 1'b1;   // 符号扩展（对word无影响）
+                    end
+                    3'b100: begin  // LBU
+                        size_type = 2'b00;  // byte
+                        sign_ext  = 1'b0;   // 零扩展
+                    end
+                    3'b101: begin  // LHU
+                        size_type = 2'b01;  // halfword
+                        sign_ext  = 1'b0;   // 零扩展
+                    end
+                    default: begin
+                        size_type = 2'b10;  // word
+                        sign_ext  = 1'b1;   // 符号扩展
+                    end
+                endcase
             end
 
             // 存储指令
