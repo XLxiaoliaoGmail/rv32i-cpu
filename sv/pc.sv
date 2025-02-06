@@ -5,15 +5,19 @@ import _riscv_defines::*;
 (
     input  logic                clk,
     input  logic                rst_n,
+    input  logic                we,
     input  logic [DATA_WIDTH-1:0] next_pc,
     output logic [DATA_WIDTH-1:0] current_pc
 );
 
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             current_pc <= '0;
-        end else begin
+        end else if (we) begin
             current_pc <= next_pc;
+        end else begin
+            current_pc <= current_pc;
         end
     end
 

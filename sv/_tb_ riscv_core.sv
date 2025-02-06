@@ -26,7 +26,7 @@ module _tb_riscv_core();
     always @(posedge clk) begin
         if (instruction == 32'h0000006F) begin  // JAL x0, 0 指令
             $display("Program execution completed");
-            #100;
+            #10;
             $stop;
         end
     end
@@ -34,8 +34,10 @@ module _tb_riscv_core();
 
     // 生成复位信号
     initial begin
+        rst_n = 1;
+        #10
         rst_n = 0;
-        #20 rst_n = 1;
+        #10 rst_n = 1;
     end
 
 endmodule

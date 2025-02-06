@@ -7,7 +7,7 @@ FFF00113    // addi x2, x0, -1     # x2 = -1 (negative data)
 // Store tests
 0010A023    // sw x1, 0(x1)        # Store x1 to address MEM[10]
 00209123    // sh x2, 2(x1)        # Store lower 16 bits of x2 to address MEM[12]
-00108223    // sb x1, 4(x1)        # Store x2 to address MEM[14]
+00108223    // sb x1, 4(x1)        # Store x1 to address MEM[14]
 
 // Load word test
 ff61a283    // lw x5, -10(x3)      # Load word from address MEM[10] to x5
@@ -18,6 +18,6 @@ ff81d383    // lhu x7, -8(x3)      # Load halfword with zero extension from MEM[
 
 // Load byte tests
 ff918403    // lb x8, -6(x3)       # Load byte with sign extension from MEM[14] to x8
-ff91c483    // lbu x9, -6(x3)       # Load byte with zero extension from MEM[14] to x9
+ff91c483    // lbu x9, -6(x3)      # Load byte with zero extension from MEM[14] to x9
 
 0000006F    // jal x0, 0           # 死循环 

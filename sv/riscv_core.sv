@@ -11,13 +11,10 @@ import _riscv_defines::*;
     // Internal signal definitions
     logic [DATA_WIDTH-1:0]     current_pc;      // Current program counter value
     logic [DATA_WIDTH-1:0]     next_pc;         // Next program counter value
-    logic [DATA_WIDTH-1:0]     pc_plus4;        // PC+4 value for sequential execution
-    logic [DATA_WIDTH-1:0]     branch_target;   // Branch target address
-    // logic [DATA_WIDTH-1:0]     instruction;     // Current instruction
     logic [REG_ADDR_WIDTH-1:0] rs1_addr;        // Source register 1 address
     logic [REG_ADDR_WIDTH-1:0] rs2_addr;        // Source register 2 address
     logic [REG_ADDR_WIDTH-1:0] rd_addr;         // Destination register address
-    logic [6:0]                opcode;          // Instruction opcode
+    opcode_t                   opcode;          // Instruction opcode
     logic [6:0]                funct7;          // Function code 7
     logic [2:0]                funct3;          // Function code 3
     logic [DATA_WIDTH-1:0]     imm;             // Immediate value
@@ -26,58 +23,51 @@ import _riscv_defines::*;
     logic [DATA_WIDTH-1:0]     alu_operand1;    // ALU operand 1
     logic [DATA_WIDTH-1:0]     alu_operand2;    // ALU operand 2
     logic [DATA_WIDTH-1:0]     alu_result;      // ALU calculation result
-    logic                      take_branch;     // Branch/jump decision result
     logic [DATA_WIDTH-1:0]     mem_rdata;       // Memory read data
-    logic [DATA_WIDTH-1:0]     wb_data;         // Write back data
+    logic [DATA_WIDTH-1:0]     reg_wb_data;     // Write back data
 
     // Control signals
-    logic                      reg_write;       // Register write enable
-    logic                      mem_write;       // Memory write enable
-    logic                      mem_read;        // Memory read enable
-    logic                      branch;          // Branch instruction flag
-    logic                      jump;            // Jump instruction flag
-    logic                      alu_src;         // ALU operand 2 select signal
-    logic [1:0]                mem_to_reg;      // Write back data select signal
+    logic                      pc_we;           // PC write enable
+    logic                      reg_we;          // Register write enable
+    logic                      mem_we;          // Memory write enable
     alu_op_t                   alu_op;          // ALU operation type
-    logic [1:0]                size_type;       // Memory access size type
-    logic                      sign_ext;        // Memory access sign extension
+    logic [1:0]                mem_size;        // Memory access size type
+    logic                      mem_sign;        // Memory access sign extension
 
-    // PC update logic
-    assign pc_plus4 = current_pc + 4;
-    assign branch_target = current_pc + imm;    // Calculate branch target address
-    
-    always_comb begin
-        if (take_branch) begin
-            if (opcode == OP_JALR) begin
-                // JALR instruction: jump to rs1 + imm
-                next_pc = {alu_result[31:1], 1'b0};  // Force lowest bit to 0
-            end else begin
-                // Branch instruction and JAL: jump to PC + imm
-                next_pc = branch_target;
-            end
-        end else begin
-            next_pc = pc_plus4;  // Sequential execution
-        end
-    end
+    control_unit ctrl_unit (
+        .clk(clk),
+        .rst_n(rst_n),
+        // input
+        .opcode(opcode),
+        .funct3(funct3),
+        .funct7(funct7),
+        .rs1_data(rs1_data),
+        .rs2_data(rs2_data),
+        .current_pc(current_pc),
+        .imm(imm),
+        .alu_result(alu_result),
+        .mem_rdata(mem_rdata),
+        // output
+        .reg_we(reg_we),
+        .reg_wb_data(reg_wb_data),
 
-    // ALU operand selection
-    assign alu_operand1 = rs1_data;
-    assign alu_operand2 = alu_src ? imm : rs2_data;
+        .alu_operand1(alu_operand1),
+        .alu_operand2(alu_operand2),
+        .alu_op(alu_op),
+        
+        .mem_size(mem_size),
+        .mem_sign(mem_sign),
+        .mem_we(mem_we),
 
-    // Write back data selection
-    always_comb begin
-        case (mem_to_reg)
-            2'b00: wb_data = alu_result;    // ALU result
-            2'b01: wb_data = mem_rdata;     // Memory read data
-            2'b10: wb_data = pc_plus4;      // PC+4 (for JAL/JALR)
-            default: wb_data = alu_result;
-        endcase
-    end
+        .next_pc(next_pc),
+        .pc_we(pc_we)
+    );
 
     // Program counter
     pc pc_inst (
         .clk        (clk),
         .rst_n      (rst_n),
+        .we         (pc_we),
         .next_pc    (next_pc),
         .current_pc (current_pc)
     );
@@ -101,32 +91,15 @@ import _riscv_defines::*;
         .imm        (imm)
     );
 
-    // Control unit
-    control_unit ctrl_unit (
-        .opcode    (opcode),
-        .funct3    (funct3),
-        .funct7    (funct7),
-        .reg_write (reg_write),
-        .mem_write (mem_write),
-        .mem_read  (mem_read),
-        .branch    (branch),
-        .jump      (jump),
-        .alu_src   (alu_src),
-        .mem_to_reg(mem_to_reg),
-        .alu_op    (alu_op),
-        .size_type (size_type),
-        .sign_ext  (sign_ext)
-    );
-
     // Register file
     register_file reg_file (
         .clk      (clk),
         .rst_n    (rst_n),
-        .we       (reg_write),
+        .we       (reg_we),
         .rs1_addr (rs1_addr),
         .rs2_addr (rs2_addr),
         .rd_addr  (rd_addr),
-        .rd_data  (wb_data),
+        .rd_data  (reg_wb_data),
         .rs1_data (rs1_data),
         .rs2_data (rs2_data)
     );
@@ -139,25 +112,15 @@ import _riscv_defines::*;
         .result     (alu_result)
     );
 
-    // Branch judge unit
-    branch_judge branch_judge_inst (
-        .funct3     (funct3),
-        .rs1_data   (rs1_data),
-        .rs2_data   (rs2_data),
-        .branch     (branch),
-        .jump       (jump),
-        .take_branch(take_branch)
-    );
-
     // Data memory
     data_memory dmem (
         .clk      (clk),
         .rst_n    (rst_n),
-        .we       (mem_write),
+        .we       (mem_we),
         .addr     (alu_result),
         .wdata    (rs2_data),
-        .size_type(size_type),
-        .sign_ext (sign_ext),
+        .size     (mem_size),
+        .sign     (mem_sign),
         .rdata    (mem_rdata)
     );
 

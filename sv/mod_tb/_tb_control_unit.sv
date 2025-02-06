@@ -1,4 +1,4 @@
-`include "_riscv_defines.sv"
+`include "../_riscv_defines.sv"
 
 module _tb_control_unit;
     import _riscv_defines::*;

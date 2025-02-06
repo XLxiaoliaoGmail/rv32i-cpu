@@ -1,4 +1,4 @@
-`include "_riscv_defines.sv"
+`include "../_riscv_defines.sv"
 
 module _tb_data_memory;
     import _riscv_defines::*;

@@ -34,13 +34,13 @@ import _riscv_defines::*;
     output logic [REG_ADDR_WIDTH-1:0] rs1_addr,
     output logic [REG_ADDR_WIDTH-1:0] rs2_addr,
     output logic [REG_ADDR_WIDTH-1:0] rd_addr,
-    output logic [6:0]                opcode,
+    output opcode_t                   opcode,
     output logic [2:0]                funct3,
     output logic [6:0]                funct7,
     output logic [DATA_WIDTH-1:0]     imm
 );
     // 指令字段提取
-    assign opcode = instruction[6:0];
+    assign opcode = opcode_t'(instruction[6:0]);  // 添加显式类型转换   
 
     // 根据指令类型选择性地提取字段
     always_comb begin

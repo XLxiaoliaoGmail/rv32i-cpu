@@ -1,4 +1,4 @@
-`include "_riscv_defines.sv"
+`include "../_riscv_defines.sv"
 
 module _tb_instruction_decoder;
     import _riscv_defines::*;
@@ -8,7 +8,7 @@ module _tb_instruction_decoder;
     logic [REG_ADDR_WIDTH-1:0] rs1_addr;
     logic [REG_ADDR_WIDTH-1:0] rs2_addr;
     logic [REG_ADDR_WIDTH-1:0] rd_addr;
-    logic [6:0]                opcode;
+    opcode_t                   opcode;
     logic [2:0]                funct3;
     logic [6:0]                funct7;
     logic [DATA_WIDTH-1:0]     imm;

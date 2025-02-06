@@ -8,8 +8,8 @@ import _riscv_defines::*;
     input  logic                    we,
     input  logic [ADDR_WIDTH-1:0]   addr,
     input  logic [DATA_WIDTH-1:0]   wdata,
-    input  logic [1:0]              size_type,  // 00: byte, 01: halfword, 10: word
-    input  logic                    sign_ext,   // 1: 进行符号扩展, 0: 零扩展
+    input  logic [1:0]              size,  // 00: byte, 01: halfword, 10: word
+    input  logic                    sign,   // 1: 进行符号扩展, 0: 零扩展
     output logic [DATA_WIDTH-1:0]   rdata
 );
 
@@ -28,9 +28,9 @@ import _riscv_defines::*;
 
     // 读取数据处理（包含符号扩展）
     always_comb begin
-        case (size_type)
-            2'b00: rdata = sign_ext ? {{24{byte_data[7]}}, byte_data} : {24'b0, byte_data};    // byte
-            2'b01: rdata = sign_ext ? {{16{half_data[15]}}, half_data} : {16'b0, half_data};   // halfword
+        case (size)
+            2'b00: rdata = sign ? {{24{byte_data[7]}}, byte_data} : {24'b0, byte_data};    // byte
+            2'b01: rdata = sign ? {{16{half_data[15]}}, half_data} : {16'b0, half_data};   // halfword
             2'b10: rdata = word_data;                                                           // word
             default: rdata = word_data;
         endcase
