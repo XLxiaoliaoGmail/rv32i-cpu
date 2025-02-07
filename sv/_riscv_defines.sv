@@ -4,6 +4,7 @@ package _riscv_defines;
     parameter ADDR_WIDTH = 32;
     parameter REG_ADDR_WIDTH = 5;
     parameter INSTR_MEM_SIZE = 4096;
+    parameter _DEBUG_NO_USE_ = 'x;
 
     // 操作码定义
     typedef enum logic [6:0] {
@@ -98,7 +99,7 @@ package _riscv_defines;
         ALU_SLL  = 4'b0111,
         ALU_SRL  = 4'b1000,
         ALU_SRA  = 4'b1001,
-        ALU_NONE  = 4'b1111
+        ALU_DEBUG_NO_USE = _DEBUG_NO_USE_
     } alu_op_t;
 
     // 状态编码

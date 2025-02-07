@@ -7,17 +7,17 @@ import _riscv_defines::*;
     input  logic                rst_n,
     input  logic                we,
     input  logic [DATA_WIDTH-1:0] next_pc,
-    output logic [DATA_WIDTH-1:0] current_pc
+    output logic [DATA_WIDTH-1:0] now_pc
 );
 
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            current_pc <= '0;
+            now_pc <= '0;
         end else if (we) begin
-            current_pc <= next_pc;
+            now_pc <= next_pc;
         end else begin
-            current_pc <= current_pc;
+            now_pc <= now_pc;
         end
     end
 

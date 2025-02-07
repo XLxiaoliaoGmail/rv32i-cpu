@@ -9,7 +9,7 @@ import _riscv_defines::*;
 );
 
     // Internal signal definitions
-    logic [DATA_WIDTH-1:0]     current_pc;      // Current program counter value
+    logic [DATA_WIDTH-1:0]     now_pc;      // Current program counter value
     logic [DATA_WIDTH-1:0]     next_pc;         // Next program counter value
     logic [REG_ADDR_WIDTH-1:0] rs1_addr;        // Source register 1 address
     logic [REG_ADDR_WIDTH-1:0] rs2_addr;        // Source register 2 address
@@ -27,8 +27,8 @@ import _riscv_defines::*;
     logic [DATA_WIDTH-1:0]     reg_wb_data;     // Write back data
 
     // Control signals
-    logic                      pc_we;           // PC write enable
-    logic                      reg_we;          // Register write enable
+    logic                      pc_write_en;           // PC write enable
+    logic                      reg_write_en;          // Register write enable
     logic                      mem_we;          // Memory write enable
     alu_op_t                   alu_op;          // ALU operation type
     logic [1:0]                mem_size;        // Memory access size type
@@ -43,12 +43,12 @@ import _riscv_defines::*;
         .funct7(funct7),
         .rs1_data(rs1_data),
         .rs2_data(rs2_data),
-        .current_pc(current_pc),
+        .now_pc(now_pc),
         .imm(imm),
         .alu_result(alu_result),
         .mem_rdata(mem_rdata),
         // output
-        .reg_we(reg_we),
+        .reg_write_en(reg_write_en),
         .reg_wb_data(reg_wb_data),
 
         .alu_operand1(alu_operand1),
@@ -60,22 +60,22 @@ import _riscv_defines::*;
         .mem_we(mem_we),
 
         .next_pc(next_pc),
-        .pc_we(pc_we)
+        .pc_write_en(pc_write_en)
     );
 
     // Program counter
     pc pc_inst (
         .clk        (clk),
         .rst_n      (rst_n),
-        .we         (pc_we),
+        .we         (pc_write_en),
         .next_pc    (next_pc),
-        .current_pc (current_pc)
+        .now_pc (now_pc)
     );
 
     // Instruction memory
     instruction_memory imem (
         .clk         (clk),
-        .addr        (current_pc),
+        .addr        (now_pc),
         .instruction (instruction)
     );
 
@@ -95,7 +95,7 @@ import _riscv_defines::*;
     register_file reg_file (
         .clk      (clk),
         .rst_n    (rst_n),
-        .we       (reg_we),
+        .we       (reg_write_en),
         .rs1_addr (rs1_addr),
         .rs2_addr (rs2_addr),
         .rd_addr  (rd_addr),

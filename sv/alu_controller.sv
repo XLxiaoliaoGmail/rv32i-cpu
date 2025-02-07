@@ -4,9 +4,9 @@ module alu_controller
 import _riscv_defines::*;
 (
     input  logic                    clk,
-    input  logic                    rst_n,
     // 控制信号输入
-    input  logic [2:0]              current_state,  // 当前状态
+    input  state_t                  now_state,  // 当前状态
+    input  state_t                  next_state, // 下一个状态
     input  opcode_t                 opcode,         // 操作码
     input  logic [2:0]              funct3,         // 功能码3
     input  logic [6:0]              funct7,         // 功能码7
@@ -16,7 +16,7 @@ import _riscv_defines::*;
     input  logic [DATA_WIDTH-1:0]   rs1_data,      // 寄存器1数据
     input  logic [DATA_WIDTH-1:0]   rs2_data,      // 寄存器2数据
     input  logic [DATA_WIDTH-1:0]   imm,           // 立即数
-    input  logic [DATA_WIDTH-1:0]   current_pc,    // 当前PC值
+    input  logic [DATA_WIDTH-1:0]   now_pc,    // 当前PC值
     
     // ALU控制输出
     output logic [DATA_WIDTH-1:0]   alu_operand1,  // ALU操作数1
@@ -24,20 +24,16 @@ import _riscv_defines::*;
     output alu_op_t                 alu_op         // ALU操作类型
 );
     // ALU操作数和操作类型选择逻辑
-    always_comb begin
-        case (current_state)
-            FETCH: begin
-                // PC+4计算
-                alu_operand1 = current_pc;
-                alu_operand2 = 32'd4;
-                alu_op = ALU_ADD;
-            end
-
+    always_ff @(posedge clk) begin
+        // 由于是上升沿触发 需要提前一个状态
+        case (next_state)
+            // 在 FETCH 阶段计算 PC+4 是不可能的，因为此时 PC 值未确定
+            // DECODE 阶段计算跳转
             DECODE: begin
                 case (opcode)
                     OP_JAL, OP_BRANCH: begin
                         // JAL和BRANCH指令：PC + imm
-                        alu_operand1 = current_pc;
+                        alu_operand1 = now_pc;
                         alu_operand2 = imm;
                         alu_op = ALU_ADD;
                     end
@@ -50,16 +46,15 @@ import _riscv_defines::*;
                     end
 
                     default: begin
-                        alu_operand1 = 32'hffff;
-                        alu_operand2 = 32'hffff;
-                        alu_op = ALU_NONE;
+                        alu_operand1 = _DEBUG_NO_USE_;
+                        alu_operand2 = _DEBUG_NO_USE_;
+                        alu_op = ALU_DEBUG_NO_USE;
                     end
                 endcase
             end
 
             EXECUTE: begin
                 case (opcode)
-
                     OP_R_TYPE: begin
                         // R型指令：使用寄存器值
                         alu_operand1 = rs1_data;
@@ -74,9 +69,9 @@ import _riscv_defines::*;
                             R_FUN3_SLT:      alu_op = ALU_SLT;
                             R_FUN3_SLTU:     alu_op = ALU_SLTU;
                             default: begin
-                                alu_operand1 = 32'hffff;
-                                alu_operand2 = 32'hffff;
-                                alu_op = ALU_NONE;
+                                alu_operand1 = _DEBUG_NO_USE_;
+                                alu_operand2 = _DEBUG_NO_USE_;
+                                alu_op = ALU_DEBUG_NO_USE;
                             end
                         endcase
                     end
@@ -95,9 +90,9 @@ import _riscv_defines::*;
                             I_FUN3_SLLI:     alu_op = ALU_SLL;
                             I_FUN3_SRLI_SRAI:alu_op = (funct7[5]) ? ALU_SRA : ALU_SRL;
                             default: begin
-                                alu_operand1 = 32'hffff;
-                                alu_operand2 = 32'hffff;
-                                alu_op = ALU_NONE;
+                                alu_operand1 = _DEBUG_NO_USE_;
+                                alu_operand2 = _DEBUG_NO_USE_;
+                                alu_op = ALU_DEBUG_NO_USE;
                             end
                         endcase
                     end
@@ -121,9 +116,9 @@ import _riscv_defines::*;
                             BRANCH_FUN3_BLTU: alu_op = ALU_SLTU; // bltu: 无符号小于比较
                             BRANCH_FUN3_BGEU: alu_op = ALU_SLTU; // bgeu: 无符号大于等于用小于的反
                             default: begin
-                                alu_operand1 = 32'hffff;
-                                alu_operand2 = 32'hffff;
-                                alu_op = ALU_NONE;
+                                alu_operand1 = _DEBUG_NO_USE_;
+                                alu_operand2 = _DEBUG_NO_USE_;
+                                alu_op = ALU_DEBUG_NO_USE;
                             end
                         endcase
 
@@ -138,14 +133,14 @@ import _riscv_defines::*;
 
                     OP_AUIPC: begin
                         // AUIPC：PC加立即数
-                        alu_operand1 = current_pc;
+                        alu_operand1 = now_pc;
                         alu_operand2 = imm;
                         alu_op = ALU_ADD;
                     end
 
                     OP_JAL: begin
                         // JAL：PC + imm
-                        alu_operand1 = current_pc;
+                        alu_operand1 = now_pc;
                         alu_operand2 = imm;
                         alu_op = ALU_ADD;
                     end
@@ -164,16 +159,17 @@ import _riscv_defines::*;
                     end
 
                     default: begin
-                        alu_operand1 = 32'hffff;
-                        alu_operand2 = 32'hffff;
-                        alu_op = ALU_NONE;
+                        alu_operand1 = _DEBUG_NO_USE_;
+                        alu_operand2 = _DEBUG_NO_USE_;
+                        alu_op = ALU_DEBUG_NO_USE;
                     end
                 endcase
             end
+
             default: begin
-                alu_operand1 = 32'hffff;
-                alu_operand2 = 32'hffff;
-                alu_op = ALU_NONE;
+                alu_operand1 = _DEBUG_NO_USE_;
+                alu_operand2 = _DEBUG_NO_USE_;
+                alu_op = ALU_DEBUG_NO_USE;
             end
         endcase
     end

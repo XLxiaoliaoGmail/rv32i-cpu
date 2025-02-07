@@ -28,7 +28,7 @@ import _riscv_defines::*;
             ALU_SLL:  result = operand1 << operand2[4:0];
             ALU_SRL:  result = operand1 >> operand2[4:0];
             ALU_SRA:  result = operand1_signed >>> operand2[4:0];
-            default:  result = '0;
+            default:  result = _DEBUG_NO_USE_;
         endcase
     end
 endmodule 

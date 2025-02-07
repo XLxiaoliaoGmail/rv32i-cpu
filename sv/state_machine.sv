@@ -6,11 +6,13 @@ import _riscv_defines::*;
     input  logic        clk,
     input  logic        rst_n,
     input  opcode_t     opcode,
-    output state_t      current_state
+    output state_t      now_state,
+    output state_t      next_state
 );
 
+
     // 状态寄存器
-    state_t current_state_reg, next_state;
+    state_t current_state_reg;
 
     // 时序逻辑：状态更新
     always_ff @(posedge clk, negedge rst_n) begin
@@ -69,6 +71,6 @@ import _riscv_defines::*;
     end
 
     // 输出当前状态
-    assign current_state = current_state_reg;
+    assign now_state = current_state_reg;
 
 endmodule 

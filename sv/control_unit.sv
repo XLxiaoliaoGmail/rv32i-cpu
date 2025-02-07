@@ -10,12 +10,12 @@ import _riscv_defines::*;
     input  logic [6:0]              funct7,
     input  logic [DATA_WIDTH-1:0]   rs1_data,
     input  logic [DATA_WIDTH-1:0]   rs2_data,
-    input  logic [DATA_WIDTH-1:0]   current_pc,
+    input  logic [DATA_WIDTH-1:0]   now_pc,
     input  logic [DATA_WIDTH-1:0]   imm,
     input  logic [DATA_WIDTH-1:0]   alu_result,
     input  logic [DATA_WIDTH-1:0]   mem_rdata,
     
-    output logic                    reg_we,
+    output logic                    reg_write_en,
     output logic [DATA_WIDTH-1:0]   reg_wb_data,
 
     output logic [DATA_WIDTH-1:0]   alu_operand1,
@@ -27,30 +27,30 @@ import _riscv_defines::*;
     output logic                    mem_we,
 
     output logic [DATA_WIDTH-1:0]   next_pc,
-    output logic                    pc_we
+    output logic                    pc_write_en
 );
 
-    state_t current_state;
+    // 需要声明 state 否则编译器会错误判断类型
+    state_t now_state;
+    state_t next_state;
     logic branch;
     logic [DATA_WIDTH-1:0] pc_plus4_reg;
-    logic [DATA_WIDTH-1:0] next_pc_reg;
-    logic reg_we_reg;
+    logic [DATA_WIDTH-1:0] pc_branch_to_reg;
 
-    assign reg_we = reg_we_reg;
-
-    assign next_pc = next_pc_reg;
+    assign pc_plus4_reg = now_pc + 4;
 
     state_machine state_machine_inst (
         .clk(clk),
         .rst_n(rst_n),
         .opcode(opcode),
-        .current_state(current_state)
+        .now_state(now_state),
+        .next_state(next_state)
     );
 
     alu_controller  alu_controller_inst (
         .clk(clk),
-        .rst_n(rst_n),
-        .current_state(current_state),
+        .now_state(now_state),
+        .next_state(next_state),
         .opcode(opcode),
         .funct3(funct3),
         .funct7(funct7),
@@ -58,74 +58,28 @@ import _riscv_defines::*;
         .rs2_data(rs2_data),
 
         .imm(imm),
-        .current_pc(current_pc),
+        .now_pc(now_pc),
         .alu_operand1(alu_operand1),
         .alu_operand2(alu_operand2),
         .alu_op(alu_op)
     );
 
-    // pc_we 控制逻辑
+    // pc_write_en
     always_comb begin
-        case (current_state)
-            EXECUTE: begin
-                if (opcode == OP_BRANCH || opcode == OP_JAL || opcode == OP_JALR) begin
-                    pc_we = 1'b1;  // 分支和跳转指令在EXECUTE阶段结束时更新PC
-                end else begin
-                    pc_we = 1'b0;
-                end
-            end
-            MEMORY: begin
-                if (opcode == OP_STORE) begin
-                    pc_we = 1'b1;  // 存储指令在MEMORY阶段结束时更新PC
-                end else begin
-                    pc_we = 1'b0;
-                end
-            end
-            WRITEBACK: begin
-                pc_we = 1'b1;  // 其他所有指令在WRITEBACK阶段结束时更新PC
-            end
-            default: pc_we = 1'b0;
-        endcase
+        pc_write_en = next_state == FETCH;
     end
-    
-    // pc_plus4_reg 寄存器
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            pc_plus4_reg <= '0;
-        end else if (current_state == FETCH) begin
-            // ALU 在 FETCH 阶段计算 PC+4
-            pc_plus4_reg <= alu_result;
-        end else begin
-            pc_plus4_reg <= pc_plus4_reg;
+
+    always_ff @(posedge clk) begin
+        // 注意 ALU 仅在 DECODE 阶段计算分支去向
+        if (now_state == DECODE) begin
+            pc_branch_to_reg <= {alu_result[31:1], 1'b0};
         end
     end
 
-    // reg_wb_data 写回数据选择
+    // branch
     always_comb begin
-        case (opcode)
-            OP_LOAD:         reg_wb_data = mem_rdata;     // 加载指令选择内存数据
-            OP_JAL, OP_JALR: reg_wb_data = pc_plus4_reg;  // 跳转指令选择PC+4
-            default: reg_wb_data = alu_result;
-        endcase
-    end
-
-    // reg_we_reg 寄存器写使能信号
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            reg_we_reg <= 1'b0;
-        end else if (current_state == DECODE) begin  // 数据在 EXECUTE 阶段计算
-            case (opcode)
-                OP_R_TYPE, OP_I_TYPE, OP_LOAD, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
-                    reg_we_reg <= 1'b1;
-                default: reg_we_reg <= 1'b0;
-            endcase
-        end else begin
-            reg_we_reg <= 1'b0;
-        end
-    end
-
-    // branch 分支条件判断逻辑
-    always_comb begin
+        // 注意 ALU 在 EXECUTE 阶段计算是否分支
+        // brnach 仅在 EXECUTE 阶段有效
         case (opcode)
             OP_JAL, OP_JALR: begin
                 branch = 1'b1;
@@ -145,24 +99,41 @@ import _riscv_defines::*;
         endcase
     end
 
-    // next_pc_reg 下一个PC值的计算
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            next_pc_reg <= '0;
-        end else if (current_state == DECODE) begin
-            if (branch) begin
-                next_pc_reg <= {alu_result[31:1], 1'b0};
-            end else begin
-                next_pc_reg <= pc_plus4_reg;  // 顺序执行
-            end
+    // next_pc
+    always_comb begin
+        // brnach 仅在 EXECUTE 阶段有效
+        if (branch) begin
+            next_pc = pc_branch_to_reg;
         end else begin
-            next_pc_reg <= next_pc_reg;
+            next_pc = pc_plus4_reg;  // 顺序执行
         end
     end
 
+    // reg_wb_data 写回数据选择
+    always_comb begin
+        case (opcode)
+            OP_LOAD:         reg_wb_data = mem_rdata;     // 加载指令选择内存数据
+            OP_JAL, OP_JALR: reg_wb_data = pc_plus4_reg;  // 跳转指令选择PC+4
+            default: reg_wb_data = alu_result;
+        endcase
+    end
+
+    // reg_write_en 寄存器写使能信号
+    always_comb begin
+        // 提前拉高 reg_write_en
+        if (next_state == WRITEBACK) begin  
+            case (opcode)
+                OP_R_TYPE, OP_I_TYPE, OP_LOAD, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
+                    reg_write_en <= 1'b1;
+                default: reg_write_en <= 1'b0;
+            endcase
+        end else begin
+            reg_write_en <= 1'b0;
+        end
+    end
 
     // 内存写使能信号
-    assign mem_we = (current_state == MEMORY) && (opcode == OP_STORE);
+    assign mem_we = (next_state == MEMORY) && (opcode == OP_STORE);
 
     // 内存访问大小和符号扩展控制
     always_comb begin
