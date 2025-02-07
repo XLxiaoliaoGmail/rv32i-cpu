@@ -31,5 +31,4 @@ import _riscv_defines::*;
             default:  result = '0;
         endcase
     end
-
 endmodule 

@@ -97,7 +97,8 @@ package _riscv_defines;
         ALU_SLTU = 4'b0110,
         ALU_SLL  = 4'b0111,
         ALU_SRL  = 4'b1000,
-        ALU_SRA  = 4'b1001
+        ALU_SRA  = 4'b1001,
+        ALU_NONE  = 4'b1111
     } alu_op_t;
 
     // 状态编码

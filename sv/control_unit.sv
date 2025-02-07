@@ -34,6 +34,9 @@ import _riscv_defines::*;
     logic branch;
     logic [DATA_WIDTH-1:0] pc_plus4_reg;
     logic [DATA_WIDTH-1:0] next_pc_reg;
+    logic reg_we_reg;
+
+    assign reg_we = reg_we_reg;
 
     assign next_pc = next_pc_reg;
 
@@ -89,9 +92,8 @@ import _riscv_defines::*;
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             pc_plus4_reg <= '0;
-        end else if (current_state == EXECUTE) begin
+        end else if (current_state == FETCH) begin
             // ALU 在 FETCH 阶段计算 PC+4
-            // 在 EXECUTE 阶段存入
             pc_plus4_reg <= alu_result;
         end else begin
             pc_plus4_reg <= pc_plus4_reg;
@@ -107,16 +109,18 @@ import _riscv_defines::*;
         endcase
     end
 
-    // reg_we 寄存器写使能信号
-    always_comb begin
-        if (current_state == WRITEBACK) begin  // 只在WRITEBACK状态允许写寄存器
+    // reg_we_reg 寄存器写使能信号
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            reg_we_reg <= 1'b0;
+        end else if (current_state == DECODE) begin  // 数据在 EXECUTE 阶段计算
             case (opcode)
                 OP_R_TYPE, OP_I_TYPE, OP_LOAD, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
-                    reg_we = 1'b1;
-                default: reg_we = 1'b0;
+                    reg_we_reg <= 1'b1;
+                default: reg_we_reg <= 1'b0;
             endcase
         end else begin
-            reg_we = 1'b0;
+            reg_we_reg <= 1'b0;
         end
     end
 
