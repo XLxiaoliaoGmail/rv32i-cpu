@@ -69,6 +69,7 @@ import _riscv_defines::*;
                 rd_addr = instruction[11:7];
                 funct3 = instruction[14:12];
                 rs1_addr = instruction[19:15];
+                funct7 = instruction[31:25];
                 imm = {{20{instruction[31]}}, instruction[31:20]};
             end
 

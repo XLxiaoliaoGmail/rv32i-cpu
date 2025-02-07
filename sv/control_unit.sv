@@ -33,6 +33,9 @@ import _riscv_defines::*;
     state_t current_state;
     logic branch;
     logic [DATA_WIDTH-1:0] pc_plus4_reg;
+    logic [DATA_WIDTH-1:0] next_pc_reg;
+
+    assign next_pc = next_pc_reg;
 
     state_machine state_machine_inst (
         .clk(clk),
@@ -86,7 +89,9 @@ import _riscv_defines::*;
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             pc_plus4_reg <= '0;
-        end else if (current_state == FETCH) begin
+        end else if (current_state == EXECUTE) begin
+            // ALU 在 FETCH 阶段计算 PC+4
+            // 在 EXECUTE 阶段存入
             pc_plus4_reg <= alu_result;
         end else begin
             pc_plus4_reg <= pc_plus4_reg;
@@ -136,14 +141,21 @@ import _riscv_defines::*;
         endcase
     end
 
-    // next_pc 下一个PC值的计算
-    always_comb begin
-        if (branch) begin
-            next_pc = {alu_result[31:1], 1'b0};
+    // next_pc_reg 下一个PC值的计算
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            next_pc_reg <= '0;
+        end else if (current_state == DECODE) begin
+            if (branch) begin
+                next_pc_reg <= {alu_result[31:1], 1'b0};
+            end else begin
+                next_pc_reg <= pc_plus4_reg;  // 顺序执行
+            end
         end else begin
-            next_pc = pc_plus4_reg;  // 顺序执行
+            next_pc_reg <= next_pc_reg;
         end
     end
+
 
     // 内存写使能信号
     assign mem_we = (current_state == MEMORY) && (opcode == OP_STORE);

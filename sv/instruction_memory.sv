@@ -28,7 +28,7 @@ import _riscv_defines::*;
     // 复位时初始化内存
     initial begin
         // 从文件加载32位指令到临时数组
-        $readmemh("./sv/test/r-type-test", temp_mem);
+        $readmemh("./sv/test/alu_test", temp_mem);
         
         // 将32位指令拆分为8位存储到mem中
         for (int i = 0; i < INSTR_MEM_SIZE/4; i++) begin

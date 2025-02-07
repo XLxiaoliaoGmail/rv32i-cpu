@@ -42,14 +42,39 @@ import _riscv_defines::*;
             case (current_state)
                 FETCH: begin
                     // PC+4计算
-
                     alu_operand1_reg <= current_pc;
                     alu_operand2_reg <= 32'd4;
                     alu_op_reg <= ALU_ADD;
                 end
 
+                DECODE: begin
+                    case (opcode)
+                        OP_JAL, OP_BRANCH: begin
+                            // JAL和BRANCH指令：PC + imm
+                            alu_operand1_reg <= current_pc;
+                            alu_operand2_reg <= imm;
+                            alu_op_reg <= ALU_ADD;
+                        end
+                        
+                        OP_JALR: begin
+                            // JALR指令：rs1 + imm
+                            alu_operand1_reg <= rs1_data;
+                            alu_operand2_reg <= imm;
+                            alu_op_reg <= ALU_ADD;
+                        end
+
+                        default: begin
+                            // 非跳转指令保持原值
+                            alu_operand1_reg <= alu_operand1_reg;
+                            alu_operand2_reg <= alu_operand2_reg;
+                            alu_op_reg <= alu_op_reg;
+                        end
+                    endcase
+                end
+
                 EXECUTE: begin
                     case (opcode)
+
                         OP_R_TYPE: begin
                             // R型指令：使用寄存器值
                             alu_operand1_reg <= rs1_data;
