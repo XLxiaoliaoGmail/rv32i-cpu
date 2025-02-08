@@ -22,7 +22,7 @@ import _riscv_defines::*;
     output logic [DATA_WIDTH-1:0]   alu_operand2,
     output alu_op_t                 alu_op,
 
-    output logic [1:0]              mem_size,
+    output mem_size_t               mem_size,
     output logic                    mem_sign,
     output logic                    mem_we,
 
@@ -36,6 +36,7 @@ import _riscv_defines::*;
     logic branch;
     logic [DATA_WIDTH-1:0] pc_plus4_reg;
     logic [DATA_WIDTH-1:0] pc_branch_to_reg;
+    logic [DATA_WIDTH-1:0] mem_rdata_reg;
 
     assign pc_plus4_reg = now_pc + 4;
 
@@ -112,10 +113,19 @@ import _riscv_defines::*;
     // reg_wb_data 写回数据选择
     always_comb begin
         case (opcode)
-            OP_LOAD:         reg_wb_data = mem_rdata;     // 加载指令选择内存数据
+            OP_LOAD:         reg_wb_data = mem_rdata_reg; // 加载指令选择内存数据
             OP_JAL, OP_JALR: reg_wb_data = pc_plus4_reg;  // 跳转指令选择PC+4
             default: reg_wb_data = alu_result;
         endcase
+    end
+
+    // ALU 在 EXECUTE 阶段计算 MEM 读地址
+    always_ff @(posedge clk) begin
+        if (now_state == EXECUTE && opcode == OP_LOAD) begin
+            mem_rdata_reg <= mem_rdata;
+        end else begin
+            mem_rdata_reg <= _DEBUG_NO_USE_;
+        end
     end
 
     // reg_write_en 寄存器写使能信号
@@ -135,45 +145,40 @@ import _riscv_defines::*;
     // 内存写使能信号
     assign mem_we = (next_state == MEMORY) && (opcode == OP_STORE);
 
-    // 内存访问大小和符号扩展控制
+    // 内存访问大小控制
     always_comb begin
-        // 默认值设置
-        mem_sign = 1'b1;
-        mem_size = 2'b10;
         if (opcode == OP_LOAD) begin
             case (funct3)
-                3'b000: begin  // LB
-                    mem_size = 2'b00;
-                    mem_sign = 1'b1;
-                end
-                3'b001: begin  // LH
-                    mem_size = 2'b01;
-                    mem_sign = 1'b1;
-                end
-                3'b010: begin  // LW
-                    mem_size = 2'b10;
-                    mem_sign = 1'b1;
-                end
-                3'b100: begin  // LBU
-                    mem_size = 2'b00;
-                    mem_sign = 1'b0;
-                end
-                3'b101: begin  // LHU
-                    mem_size = 2'b01;
-                    mem_sign = 1'b0;
-                end
-                default: begin
-                    mem_size = 2'b10;
-                    mem_sign = 1'b1;
-                end
+                LOAD_FUN3_LB, LOAD_FUN3_LBU:  mem_size = MEM_SIZE_B;  // LB/LBU
+                LOAD_FUN3_LH, LOAD_FUN3_LHU:  mem_size = MEM_SIZE_H;  // LH/LHU
+                LOAD_FUN3_LW:                 mem_size = MEM_SIZE_W;  // LW
+                default:                      mem_size = _MEM_SIZE_DEBUG_NO_USE;
             endcase
         end else if (opcode == OP_STORE) begin
             case (funct3)
-                STORE_FUN3_SB: mem_size = 2'b00;  // SB
-                STORE_FUN3_SH: mem_size = 2'b01;  // SH
-                STORE_FUN3_SW: mem_size = 2'b10;  // SW
-                default:       mem_size = 2'b10;
+                STORE_FUN3_SB: mem_size = MEM_SIZE_B;  // SB
+                STORE_FUN3_SH: mem_size = MEM_SIZE_H;  // SH
+                STORE_FUN3_SW: mem_size = MEM_SIZE_W;  // SW
+                default:       mem_size = _MEM_SIZE_DEBUG_NO_USE;
             endcase
+        end else begin
+            mem_size = _MEM_SIZE_DEBUG_NO_USE;
+        end
+    end
+
+    // 符号扩展控制
+    always_comb begin
+        if (opcode == OP_LOAD) begin
+            case (funct3)
+                LOAD_FUN3_LB,
+                LOAD_FUN3_LH,
+                LOAD_FUN3_LW:  mem_sign = 1'b1;  // 有符号加载
+                LOAD_FUN3_LBU,
+                LOAD_FUN3_LHU: mem_sign = 1'b0;  // 无符号加载
+                default:       mem_sign = _DEBUG_NO_USE_;
+            endcase
+        end else begin
+            mem_sign = _DEBUG_NO_USE_;
         end
     end
 

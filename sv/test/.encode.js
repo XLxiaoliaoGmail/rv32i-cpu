@@ -1,24 +1,52 @@
 var cmds = []
 var codes = []
 var text = `
-// ALU Operations Test Program
-// Test add, sub, and, or, xor, sll, srl, sra, slt, sltu
-00500093    // [addi x1, x0, 5  ]    # x1 = 5
-001080b3    // [add  x1, x1, x1 ]    # x1 = x1 + x1 = 10 // 测试 ALU 是否能同时操作同名寄存器
-ffb08093    // [addi x1, x0, -5 ]    # x1 = 5
-00A00113    // [addi x2, x0, 10 ]    # x2 = 10
-002081B3    // [add  x3, x1, x2 ]    # x3 = x1 + x2 = 15
-40208233    // [sub  x4, x1, x2 ]    # x4 = x1 - x2 = -5
-0020F2B3    // [and  x5, x1, x2 ]    # x5 = x1 & x2 = 0
-0021e333    // [or   x6, x3, x2 ]    # x6 = x3 | x2 = 0x0f
-0021c3b3    // [xor  x7, x3, x2 ]    # x7 = x3 ^ x2 = 0x05
-00209433    // [sll  x8, x1, x2 ]    # x8 = x1 << x2 = 5120
-002254b3    // [srl  x9, x4, x2 ]    # x9 = x4 >> x2 = 0x003fffff
-40225533    // [sra  x10, x4, x2]    # x10 = x4 >> x2 (arithmetic) = 0xffffffff
-0040a5b3    // [slt  x11, x1, x4]    # x11 = (x1 < x4) ? 1 : 0 = 0
-0040b633    // [sltu x12, x1, x4]    # x12 = (x1 < x4) ? 1 : 0 (unsigned) = 1
+[addi x1, x0, 5  ]      # x1 = 5
+[addi x2, x0, 3  ]      # x2 = 3
+[add  x3, x1, x2 ]      # x3 = 8
+[addi x4, x0, 8  ]      # x4 = 8
+[sub  x1, x3, x4 ]      # x1 = 0，验证加法结果
+[addi x1, x0, 10 ]      # x1 = 10
+[sub  x3, x1, x2 ]      # x3 = 7
+[addi x4, x0, 7  ]      # x4 = 7
+[sub  x1, x3, x4 ]      # x1 = 0，验证减法结果
+[addi x1, x0, 12 ]      # x1 = 12 (0b1100)
+[addi x2, x0, 10 ]      # x2 = 10 (0b1010)
+[and  x3, x1, x2 ]      # x3 = 8  (0b1000)
+[addi x4, x0, 8  ]      # x4 = 8
+[sub  x1, x3, x4 ]      # x1 = 0，验证AND结果
+[addi x1, x0, 12 ]      # x1 = 12 (0b1100)
+[or   x3, x1, x2 ]      # x3 = 14 (0b1110)
+[addi x4, x0, 14 ]      # x4 = 14
+[sub  x1, x3, x4 ]      # x1 = 0，验证OR结果
+[addi x1, x0, 12 ]      # x1 = 12 (0b1100)
+[xor  x3, x1, x2 ]      # x3 = 6  (0b0110)
+[addi x4, x0, 6  ]      # x4 = 6
+[sub  x1, x3, x4 ]      # x1 = 0，验证XOR结果
+[addi x1, x0, 8  ]      # x1 = 8
+[addi x2, x0, 2  ]      # x2 = 2
+[sll  x3, x1, x2 ]      # x3 = 32 (左移2位)
+[addi x4, x0, 32 ]      # x4 = 32
+[sub  x1, x3, x4 ]      # x1 = 0，验证SLL结果
+[addi x1, x0, 32 ]      # x1 = 32
+[srl  x3, x1, x2 ]      # x3 = 8 (右移2位)
+[addi x4, x0, 8  ]      # x4 = 8
+[sub  x1, x3, x4 ]      # x1 = 0，验证SRL结果
+[addi x1, x0, -32]      # x1 = -32
+[sra  x3, x1, x2 ]      # x3 = -8 (算术右移2位)
+[addi x4, x0, -8 ]      # x4 = -8
+[sub  x1, x3, x4 ]      # x1 = 0，验证SRA结果
+[addi x1, x0, -5 ]      # x1 = -5
+[addi x2, x0, 5  ]      # x2 = 5
+[slt  x3, x1, x2 ]      # x3 = 1 (因为-5 < 5)
+[addi x4, x0, 1  ]      # x4 = 1
+[sub  x1, x3, x4 ]      # x1 = 0，验证SLT结果
+[addi x1, x0, 5  ]      # x1 = 5
+[addi x2, x0, 10 ]      # x2 = 10
+[sltu x3, x1, x2 ]      # x3 = 1 (因为5 < 10)
+[addi x4, x0, 1  ]      # x4 = 1
+[sub  x1, x3, x4 ]      # x1 = 0，验证SLTU结果
 
-0000006F    // [jal x0, 0]           # 死循环 
 `
 function extractAssembly(text) {
     const regex = /\[(.*?)\]/g;  // 匹配[]中的内容
@@ -60,7 +88,7 @@ function formatAssemblyCode(codes, cmds) {
         const paddedCode = codes[i].padStart(8, '0');
         
         // 拼接格式：PC值 + 十六进制代码 + 4个空格 + // + 方括号内的汇编代码
-        result += `/* #${pc} */ ${paddedCode}    // [${cmds[i]}]\n`;
+        result += `/*PC->${pc}*/ ${paddedCode}    // [${cmds[i]}]\n`;
     }
     
     return result;

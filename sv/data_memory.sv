@@ -8,7 +8,7 @@ import _riscv_defines::*;
     input  logic                    we,
     input  logic [ADDR_WIDTH-1:0]   addr,
     input  logic [DATA_WIDTH-1:0]   wdata,
-    input  logic [1:0]              size,  // 00: byte, 01: halfword, 10: word
+    input  mem_size_t               size,  // 00: byte, 01: halfword, 10: word
     input  logic                    sign,   // 1: 进行符号扩展, 0: 零扩展
     output logic [DATA_WIDTH-1:0]   rdata
 );
@@ -43,10 +43,27 @@ import _riscv_defines::*;
                 mem[i] <= 8'h0;
             end
         end else if (we) begin
-            mem[addr]   <= wdata[7:0];
-            mem[addr+1] <= wdata[15:8];
-            mem[addr+2] <= wdata[23:16];
-            mem[addr+3] <= wdata[31:24];
+            case (size)
+                MEM_SIZE_B: begin  // 字节写入
+                    mem[addr] <= wdata[7:0];
+                end
+                MEM_SIZE_H: begin  // 半字写入
+                    mem[addr]   <= wdata[7:0];
+                    mem[addr+1] <= wdata[15:8];
+                end
+                MEM_SIZE_W: begin  // 字写入
+                    mem[addr]   <= wdata[7:0];
+                    mem[addr+1] <= wdata[15:8];
+                    mem[addr+2] <= wdata[23:16];
+                    mem[addr+3] <= wdata[31:24];
+                end
+                default: begin  // 默认为字写入
+                    mem[addr]   <= wdata[7:0];
+                    mem[addr+1] <= wdata[15:8];
+                    mem[addr+2] <= wdata[23:16];
+                    mem[addr+3] <= wdata[31:24];
+                end
+            endcase
         end
     end
 

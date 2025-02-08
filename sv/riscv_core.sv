@@ -31,7 +31,7 @@ import _riscv_defines::*;
     logic                      reg_write_en;          // Register write enable
     logic                      mem_we;          // Memory write enable
     alu_op_t                   alu_op;          // ALU operation type
-    logic [1:0]                mem_size;        // Memory access size type
+    mem_size_t                 mem_size;        // Memory access size type
     logic                      mem_sign;        // Memory access sign extension
 
     control_unit ctrl_unit (

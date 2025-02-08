@@ -110,4 +110,13 @@ package _riscv_defines;
         MEMORY   = 3'b011,
         WRITEBACK = 3'b100
     } state_t;
+
+    // LOAD STORE 参数
+    typedef enum logic [1:0] {
+        MEM_SIZE_B = 2'b00,
+        MEM_SIZE_H = 2'b01,
+        MEM_SIZE_W = 2'b10,
+        _MEM_SIZE_DEBUG_NO_USE = _DEBUG_NO_USE_
+    } mem_size_t;
+
 endpackage 
