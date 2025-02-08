@@ -1,4 +1,4 @@
-# Language Versions
+# Language
 
 For chinese version, click [here](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
 
