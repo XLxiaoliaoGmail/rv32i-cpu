@@ -1,56 +1,56 @@
-# RV32I 多周期CPU实现
+# RV32I Multi-cycle CPU Implementation
 
-这是一个基于SystemVerilog实现的RISC-V RV32I多周期CPU。该CPU支持RV32I基本指令集，采用多周期实现方式，具有清晰的状态机控制和模块化设计。
+A multi-cycle CPU supporting the RV32I instruction set based on RISC-V architecture. Implemented in SystemVerilog, it features a complete datapath and control unit. Each instruction has different execution stages, which may include fetch, decode, execute, memory access, and write-back, controlled by a state machine that determines which stages each instruction needs to execute. A central control unit coordinates the operation of all functional components, with all major modules communicating directly and exclusively with the control unit for more centralized control. Functional simulation verification was performed using ModelSim, successfully executing basic instructions including arithmetic operations, data transfer, and conditional jumps.
 
-## 特性
+## Features
 
-- 支持RV32I基本指令集
-- 多周期实现架构
-- 模块化设计，代码结构清晰
-- 包含完整的测试框架
-- SystemVerilog实现
+- Supports RV32I basic instruction set
+- Multi-cycle implementation architecture
+- Modular design with clear code structure
+- Complete testing framework
+- Implemented in SystemVerilog
 
-## 目录结构
+## Directory Structure
 
 ```
 sv/
-├── _riscv_defines.sv      # RISC-V 指令和控制信号定义
-├── riscv_core.sv          # CPU核心模块
-├── control_unit.sv        # 控制单元
-├── state_machine.sv       # 状态机实现
-├── alu.sv                 # 算术逻辑单元
-├── alu_controller.sv      # ALU控制器
-├── data_memory.sv         # 数据存储器
-├── instruction_memory.sv  # 指令存储器
-├── instruction_decoder.sv # 指令解码器
-├── pc.sv                  # 程序计数器
-├── register_file.sv       # 寄存器文件
-├── _tb_riscv_core.sv      # 顶层测试模块
-└── test/                  # 测试文件目录
+├── _riscv_defines.sv      # RISC-V instruction and control signal definitions
+├── riscv_core.sv          # CPU core module
+├── control_unit.sv        # Control unit
+├── state_machine.sv       # State machine implementation
+├── alu.sv                 # Arithmetic Logic Unit
+├── alu_controller.sv      # ALU controller
+├── data_memory.sv         # Data memory
+├── instruction_memory.sv  # Instruction memory
+├── instruction_decoder.sv # Instruction decoder
+├── pc.sv                  # Program counter
+├── register_file.sv       # Register file
+├── _tb_riscv_core.sv      # Top-level test module
+└── test/                  # Test files directory
 ```
 
-## 模块说明
+## Module Description
 
-- **Core (riscv_core.sv)**: CPU的顶层模块，整合了所有功能部件
-- **控制单元 (control_unit.sv)**: 负责生成控制信号，协调各个部件的工作
-- **状态机 (state_machine.sv)**: 实现多周期CPU的状态转换
-- **ALU (alu.sv)**: 执行算术逻辑运算
-- **数据存储器 (data_memory.sv)**: 用于数据存储
-- **指令存储器 (instruction_memory.sv)**: 存储程序指令
-- **寄存器文件 (register_file.sv)**: 实现CPU通用寄存器组
+- **Core (riscv_core.sv)**: Top-level CPU module integrating all functional components
+- **Control Unit (control_unit.sv)**: Generates control signals and coordinates component operations
+- **State Machine (state_machine.sv)**: Implements state transitions for the multi-cycle CPU
+- **ALU (alu.sv)**: Executes arithmetic and logical operations
+- **Data Memory (data_memory.sv)**: For data storage
+- **Instruction Memory (instruction_memory.sv)**: Stores program instructions
+- **Register File (register_file.sv)**: Implements CPU general-purpose registers
 
-## 指令支持
+## Instruction Support
 
-支持RV32I基本指令集，包括：
-- 算术运算指令
-- 逻辑运算指令
-- 数据传输指令
-- 分支跳转指令
+Supports the RV32I basic instruction set, including:
+- Arithmetic instructions
+- Logical instructions
+- Data transfer instructions
+- Branch and jump instructions
 
-## 测试
+## Testing
 
-项目包含完整的测试框架：
-- 提供了基础的测试程序
-- 支持ALU运算测试
-- 支持分支跳转测试
-- 支持内存访问测试
+The project includes a complete testing framework:
+- Provides basic test programs
+- Supports ALU operation testing
+- Supports branch and jump testing
+- Supports memory access testing
