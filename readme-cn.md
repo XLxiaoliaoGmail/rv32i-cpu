@@ -23,7 +23,7 @@ sv/
 ├── alu.sv                 # 算术逻辑单元
 ├── alu_controller.sv      # ALU控制器
 ├── data_memory.sv         # 数据存储器
-├── instruction_memory.sv  # 指令存储器
+├── imem.sv  # 指令存储器
 ├── instruction_decoder.sv # 指令解码器
 ├── pc.sv                  # 程序计数器
 ├── register_file.sv       # 寄存器文件
@@ -38,7 +38,7 @@ sv/
 - **状态机 (state_machine.sv)**: 实现多周期CPU的状态转换
 - **ALU (alu.sv)**: 执行算术逻辑运算
 - **数据存储器 (data_memory.sv)**: 用于数据存储
-- **指令存储器 (instruction_memory.sv)**: 存储程序指令
+- **指令存储器 (imem.sv)**: 存储程序指令
 - **寄存器文件 (register_file.sv)**: 实现CPU通用寄存器组
 
 ## 指令支持

@@ -3,8 +3,10 @@ package _riscv_defines;
     parameter DATA_WIDTH = 32;
     parameter ADDR_WIDTH = 32;
     parameter REG_ADDR_WIDTH = 5;
-    parameter INSTR_MEM_SIZE = 4096;
+    parameter IMEM_SIZE = 1 << 14;
     parameter _DEBUG_NO_USE_ = 'x;
+    parameter IMEM_PATH = "./sv/test/mem_test.bin";
+
 
     // 操作码定义
     typedef enum logic [6:0] {

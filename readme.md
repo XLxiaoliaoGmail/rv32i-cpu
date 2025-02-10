@@ -24,7 +24,7 @@ sv/
 ├── alu.sv                 # Arithmetic Logic Unit
 ├── alu_controller.sv      # ALU controller
 ├── data_memory.sv         # Data memory
-├── instruction_memory.sv  # Instruction memory
+├── imem.sv  # Instruction memory
 ├── instruction_decoder.sv # Instruction decoder
 ├── pc.sv                  # Program counter
 ├── register_file.sv       # Register file
@@ -39,7 +39,7 @@ sv/
 - **State Machine (state_machine.sv)**: Implements state transitions for the multi-cycle CPU
 - **ALU (alu.sv)**: Executes arithmetic and logical operations
 - **Data Memory (data_memory.sv)**: For data storage
-- **Instruction Memory (instruction_memory.sv)**: Stores program instructions
+- **Instruction Memory (imem.sv)**: Stores program instructions
 - **Register File (register_file.sv)**: Implements CPU general-purpose registers
 
 ## Instruction Support

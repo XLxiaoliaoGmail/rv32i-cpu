@@ -73,7 +73,7 @@ import _riscv_defines::*;
     );
 
     // Instruction memory
-    instruction_memory imem (
+    imem imem (
         .clk         (clk),
         .addr        (now_pc),
         .instruction (instruction)
