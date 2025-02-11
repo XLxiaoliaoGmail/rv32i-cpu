@@ -13,13 +13,11 @@ interface inner_if_imem_core_to_axi;
     logic                           resp_valid;
     logic [ICACHE_LINE_SIZE*8-1:0]  resp_data;  // 8个字(32字节)数据
 
-    // axi-read-slave端口
     modport requester (
         output req_valid, req_addr,
         input  resp_valid, resp_data, processing
     );
 
-    // imem-core端口
     modport responder (
         input  req_valid, req_addr,
         output resp_valid, resp_data, processing
@@ -30,13 +28,11 @@ endinterface
 module imem (
     input  logic        clk,
     input  logic        rst_n,
-    // AXI从机接口
+
     axi_read_if.slave   axi_if
 );
-    // 内部信号和接口
     inner_if_imem_core_to_axi inner_if();
     
-    // 实例化子模块
     imem_core imem_core_inst (
         .clk      (clk),
         .rst_n    (rst_n),
@@ -55,7 +51,7 @@ endmodule
 module imem_core (
     input  logic        clk,
     input  logic        rst_n,
-    // 内存接口
+
     inner_if_imem_core_to_axi.responder inner_if
 );
     import _riscv_defines::*;

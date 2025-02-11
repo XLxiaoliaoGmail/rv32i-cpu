@@ -7,9 +7,14 @@ import _riscv_defines::*;
     input  logic                rst_n,
     input  logic                we,
     input  logic [DATA_WIDTH-1:0] next_pc,
-    output logic [DATA_WIDTH-1:0] now_pc
+    icache_if.pc            pc_icache
 );
 
+    logic [DATA_WIDTH-1:0] now_pc;
+
+    assign pc_icache.pc_addr = now_pc;
+
+    assign pc_icache.pc_valid = ~pc_icache.instr_valid;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

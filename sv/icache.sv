@@ -1,23 +1,48 @@
 `include "_riscv_defines.sv"
 `include "_if_defines.sv"
 
+// 外部接口
+interface icache_if;
+import _riscv_defines::*;
+    // PC -> ICache信号
+    logic [ADDR_WIDTH-1:0] pc_addr;     // 程序计数器地址
+    logic                  pc_valid;    // PC地址有效信号
+    
+    // ICache -> PC信号
+    logic [DATA_WIDTH-1:0] instruction; // 指令数据
+    logic                  instr_valid; // 指令有效信号
+
+    modport requester (
+        output pc_addr,
+        output pc_valid,
+        input  instruction,
+        input  instr_valid
+    );
+
+    modport responder (
+        input  pc_addr,
+        input  pc_valid,
+        output instruction,
+        output instr_valid
+    );
+endinterface
+
 // icache顶层模块
 module icache (
     input  logic        clk,
     input  logic        rst_n,
     // CPU接口
-    pc_icache_if.icache pc_icache_if,
+    icache_if.responder icache_if,
     // AXI接口
     axi_read_if.master  axi_if
 );
     // 内部信号和接口
     inner_if_icache_core_to_axi inner_if();
     
-    // 实例化子模块
     icache_core icache_core_inst (
         .clk      (clk),
         .rst_n    (rst_n),
-        .pc_icache_if(pc_icache_if),
+        .icache_if(icache_if),
         .inner_if(inner_if.requester)
     );
     
@@ -40,13 +65,11 @@ interface inner_if_icache_core_to_axi;
     logic                   resp_valid;
     logic [ICACHE_LINE_SIZE*8-1:0] resp_data;
 
-    // icache-core端口
     modport requester (
         output req_valid, req_addr,
         input  resp_valid, resp_data
     );
 
-    // axi_if-read-master端口
     modport responder (
         input  req_valid, req_addr,
         output resp_valid, resp_data
@@ -57,9 +80,9 @@ endinterface
 module icache_core (
     input  logic        clk,
     input  logic        rst_n,
-    // CPU接口
-    pc_icache_if.icache pc_icache_if,
-    // AXI读主机接口
+
+    icache_if.responder icache_if,
+
     inner_if_icache_core_to_axi.requester inner_if
 );
     import _riscv_defines::*;
@@ -85,9 +108,9 @@ module icache_core (
     logic [ICACHE_INDEX_WIDTH-1:0]   addr_index;
     logic [ICACHE_LINE_OFFSET-1:0]   addr_line_offset;
     // 地址分解逻辑
-    assign addr_tag = pc_icache_if.pc_addr[DATA_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH];
-    assign addr_index = pc_icache_if.pc_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH];
-    assign addr_line_offset = pc_icache_if.pc_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-ICACHE_LINE_OFFSET];
+    assign addr_tag = icache_if.pc_addr[DATA_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH];
+    assign addr_index = icache_if.pc_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH];
+    assign addr_line_offset = icache_if.pc_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-ICACHE_LINE_OFFSET];
 
     // 状态机定义
     typedef enum logic [1:0] {
@@ -127,7 +150,7 @@ module icache_core (
         next_state = curr_state;
         case (curr_state)
             IDLE: begin
-                if (pc_icache_if.pc_valid) begin
+                if (icache_if.pc_valid) begin
                     next_state = LOOKUP;
                 end
             end
@@ -146,13 +169,13 @@ module icache_core (
         endcase
     end
 
-    // pc_icache_if.instr_valid
+    // icache_if.instr_valid
     always_comb begin
-        pc_icache_if.instr_valid = 1'b0;
+        icache_if.instr_valid = 1'b0;
         if (curr_state == LOOKUP && hit_valid) begin
-            pc_icache_if.instr_valid = 1'b1;
+            icache_if.instr_valid = 1'b1;
         end else if (curr_state == REFILL && inner_if.resp_valid) begin
-            pc_icache_if.instr_valid = 1'b1;
+            icache_if.instr_valid = 1'b1;
         end
     end
 
@@ -164,15 +187,15 @@ module icache_core (
         end
     end
 
-    // pc_icache_if.instruction
+    // icache_if.instruction
     always_comb begin
-        pc_icache_if.instruction = 32'b0;
+        icache_if.instruction = 32'b0;
         if (curr_state == LOOKUP && hit_valid) begin
             // Just 2 ways
-            pc_icache_if.instruction = cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
+            icache_if.instruction = cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
                 addr_line_offset * 32 +: 32];
         end else if (curr_state == REFILL && inner_if.resp_valid) begin
-            pc_icache_if.instruction = inner_if.resp_data[addr_line_offset * 32 +: 32];
+            icache_if.instruction = inner_if.resp_data[addr_line_offset * 32 +: 32];
         end
     end
 
@@ -181,7 +204,7 @@ module icache_core (
         inner_if.req_addr = 32'b0;
         if (curr_state == LOOKUP && !hit_valid) begin
             // 一次请求 ICACHE_LINE_OFFSET 个命令, 故需要偏移 ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET 个字节
-            inner_if.req_addr = {pc_icache_if.pc_addr[DATA_WIDTH-1:ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET], {(ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET){1'b0}}};
+            inner_if.req_addr = {icache_if.pc_addr[DATA_WIDTH-1:ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET], {(ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET){1'b0}}};
         end
     end
 
@@ -222,9 +245,9 @@ endmodule
 module axi_read_master (
     input  logic       clk,
     input  logic       rst_n,
-    // AXI接口
+
     axi_read_if.master axi_if,
-    // AXI读主机接口
+
     inner_if_icache_core_to_axi.responder inner_if
 );
     import _riscv_defines::*;

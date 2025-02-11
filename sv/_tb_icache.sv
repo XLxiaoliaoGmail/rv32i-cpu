@@ -9,14 +9,14 @@ module _tb_icache;
     logic rst_n;
 
     // 接口实例化
-    pc_icache_if pc_icache_if();
+    icache_if icache_if();
     axi_read_if axi_if();
 
     // DUT实例化
     icache icache_inst (
         .clk(clk),
         .rst_n(rst_n),
-        .pc_icache_if(pc_icache_if),
+        .icache_if(icache_if),
         .axi_if(axi_if)
     );
 
@@ -35,8 +35,8 @@ module _tb_icache;
     // 测试任务
     task reset_system;
         rst_n = 0;
-        pc_icache_if.pc_valid = 0;
-        pc_icache_if.pc_addr = '0;
+        icache_if.pc_valid = 0;
+        icache_if.pc_addr = '0;
         repeat(5) @(posedge clk);
         rst_n = 1;
     endtask
@@ -44,11 +44,11 @@ module _tb_icache;
     // 请求指令任务
     task request_instruction(input logic [31:0] addr);
         @(posedge clk);
-        pc_icache_if.pc_valid = 1;
-        pc_icache_if.pc_addr = addr;
-        wait(pc_icache_if.instr_valid);
+        icache_if.pc_valid = 1;
+        icache_if.pc_addr = addr;
+        wait(icache_if.instr_valid);
         @(posedge clk);
-        pc_icache_if.pc_valid = 0;
+        icache_if.pc_valid = 0;
         repeat(10) @(posedge clk);
     endtask
 
