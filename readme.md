@@ -1,3 +1,9 @@
+# Language
+
+For chinese version, click [here](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
+
+阅读中文版本，点击[这里](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md)。
+
 # RV32I Multi-cycle CPU Implementation
 
 A multi-cycle CPU supporting the RV32I instruction set based on RISC-V architecture. Implemented in SystemVerilog, it features a complete datapath and control unit. Each instruction has different execution stages, which may include fetch, decode, execute, memory access, and write-back, controlled by a state machine that determines which stages each instruction needs to execute. A central control unit coordinates the operation of all functional components, with all major modules communicating directly and exclusively with the control unit for more centralized control. Functional simulation verification was performed using ModelSim, successfully executing basic instructions including arithmetic operations, data transfer, and conditional jumps.
