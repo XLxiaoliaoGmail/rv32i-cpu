@@ -12,7 +12,7 @@ import _riscv_defines::*;
     logic                  resp_valid;
 
     // 请求者端口（如执行单元）
-    modport requester (
+    modport master (
         output operand1,
         output operand2,
         output req_valid,
@@ -22,7 +22,7 @@ import _riscv_defines::*;
     );
 
     // 响应者端口（ALU）
-    modport responder (
+    modport self (
         input  operand1,
         input  operand2,
         input  req_valid,
@@ -38,7 +38,7 @@ import _riscv_defines::*;
 (
     input  logic    clk,
     input  logic    rst_n,
-    alu_if.responder alu_if
+    alu_if.self alu_if
 );
     // 内部信号
     logic signed [DATA_WIDTH-1:0] operand1_signed;

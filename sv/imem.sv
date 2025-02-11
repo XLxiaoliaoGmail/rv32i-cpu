@@ -1,8 +1,31 @@
 `include "_riscv_defines.sv"
 `include "_if_defines.sv"
 
+// imem顶层模块
+module imem (
+    input  logic        clk,
+    input  logic        rst_n,
+
+    axi_read_if.slave   axi_if
+);
+    _imem_if _imem_if();
+    
+    imem_core imem_core_inst (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        ._imem_if  (_imem_if.responder)
+    );
+    
+    axi_read_slave axi_read_slave_inst (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .axi_if   (axi_if),
+        ._imem_if  (_imem_if.requester)
+    );
+endmodule
+
 // imem核心到AXI从机的接口
-interface inner_if_imem_core_to_axi;
+interface _imem_if;
     import _riscv_defines::*;
     // 请求信号
     logic                      req_valid;
@@ -24,35 +47,12 @@ interface inner_if_imem_core_to_axi;
     );
 endinterface
 
-// imem顶层模块
-module imem (
-    input  logic        clk,
-    input  logic        rst_n,
-
-    axi_read_if.slave   axi_if
-);
-    inner_if_imem_core_to_axi inner_if();
-    
-    imem_core imem_core_inst (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .inner_if  (inner_if.responder)
-    );
-    
-    axi_read_slave axi_read_slave_inst (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .axi_if   (axi_if),
-        .inner_if  (inner_if.requester)
-    );
-endmodule
-
 // imem核心模块
 module imem_core (
     input  logic        clk,
     input  logic        rst_n,
 
-    inner_if_imem_core_to_axi.responder inner_if
+    _imem_if.responder _imem_if
 );
     import _riscv_defines::*;
 
@@ -78,21 +78,21 @@ module imem_core (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             delay_counter <= '0;
-        end else if (inner_if.req_valid && !inner_if.processing) begin
+        end else if (_imem_if.req_valid && !_imem_if.processing) begin
             delay_counter <= 4'd10;  // 模拟读取延迟
         end else if (delay_counter > 0) begin
             delay_counter <= delay_counter - 1;
         end
     end
 
-    // inner_if.processing
+    // _imem_if.processing
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            inner_if.processing <= 1'b0;
-        end else if (inner_if.req_valid && !inner_if.processing) begin
-            inner_if.processing <= 1'b1;
-        end else if (delay_counter == 0 && inner_if.processing) begin
-            inner_if.processing <= 1'b0;
+            _imem_if.processing <= 1'b0;
+        end else if (_imem_if.req_valid && !_imem_if.processing) begin
+            _imem_if.processing <= 1'b1;
+        end else if (delay_counter == 0 && _imem_if.processing) begin
+            _imem_if.processing <= 1'b0;
         end
     end
 
@@ -100,29 +100,29 @@ module imem_core (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             curr_addr <= '0;
-        end else if (inner_if.req_valid && !inner_if.processing) begin
-            curr_addr <= inner_if.req_addr;
+        end else if (_imem_if.req_valid && !_imem_if.processing) begin
+            curr_addr <= _imem_if.req_addr;
         end
     end
 
     // 响应有效信号逻辑
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            inner_if.resp_valid <= 1'b0;
+            _imem_if.resp_valid <= 1'b0;
         end else if (delay_counter == 1) begin
-            inner_if.resp_valid <= 1'b1;
+            _imem_if.resp_valid <= 1'b1;
         end else begin
-            inner_if.resp_valid <= 1'b0;
+            _imem_if.resp_valid <= 1'b0;
         end
     end
 
     // 响应数据逻辑
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            inner_if.resp_data <= '0;
+            _imem_if.resp_data <= '0;
         end else if (delay_counter == 1) begin
             for (int i = 0; i < 8; i++) begin
-                inner_if.resp_data[i*32 +: 32] <= imem_words[curr_addr[AXI_ADDR_WIDTH-1:2] + i];
+                _imem_if.resp_data[i*32 +: 32] <= imem_words[curr_addr[AXI_ADDR_WIDTH-1:2] + i];
             end
         end
     end
@@ -135,7 +135,7 @@ module axi_read_slave (
     // AXI接口
     axi_read_if.slave  axi_if,
     // IMEM接口
-    inner_if_imem_core_to_axi.requester inner_if
+    _imem_if.requester _imem_if
 );
     import _riscv_defines::*;
 
@@ -181,7 +181,7 @@ module axi_read_slave (
                 next_state = WAIT_IMEM;
             end
             WAIT_IMEM: begin
-                if (inner_if.resp_valid) begin
+                if (_imem_if.resp_valid) begin
                     next_state = R_CHANNEL;
                 end
             end
@@ -199,9 +199,9 @@ module axi_read_slave (
     // req_addr
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            inner_if.req_addr <= '0;
+            _imem_if.req_addr <= '0;
         end else if (curr_state == IDLE && axi_if.arvalid) begin
-            inner_if.req_addr <= axi_if.araddr;
+            _imem_if.req_addr <= axi_if.araddr;
         end
     end
 
@@ -220,13 +220,13 @@ module axi_read_slave (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cached_data <= '0;
-        end else if (curr_state == WAIT_IMEM && inner_if.resp_valid) begin
-            cached_data <= inner_if.resp_data;
+        end else if (curr_state == WAIT_IMEM && _imem_if.resp_valid) begin
+            cached_data <= _imem_if.resp_data;
         end
     end
 
     // IMEM请求信号
-    assign inner_if.req_valid = (curr_state == AR_CHANNEL);
+    assign _imem_if.req_valid = (curr_state == AR_CHANNEL);
     
     // addr_reg
     always_ff @(posedge clk or negedge rst_n) begin

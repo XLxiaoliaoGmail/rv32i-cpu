@@ -80,7 +80,7 @@ import _riscv_defines::*;
     );
 
     // Instruction decoder
-    instruction_decoder decoder (
+    idecoder decoder (
         .instruction(instruction),
         .rs1_addr   (rs1_addr),
         .rs2_addr   (rs2_addr),

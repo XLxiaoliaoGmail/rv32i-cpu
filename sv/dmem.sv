@@ -1,6 +1,6 @@
 `include "_riscv_defines.sv"
 
-module data_memory
+module dmem
 import _riscv_defines::*;
 (
     input  logic                    clk,

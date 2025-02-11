@@ -3,112 +3,118 @@
 module control_unit
 import _riscv_defines::*;
 (
-    input  logic                    clk,
-    input  logic                    rst_n,
-    input  opcode_t                 opcode,
-    input  logic [2:0]              funct3,
-    input  logic [6:0]              funct7,
-    input  logic [DATA_WIDTH-1:0]   rs1_data,
-    input  logic [DATA_WIDTH-1:0]   rs2_data,
-    input  logic [DATA_WIDTH-1:0]   now_pc,
-    input  logic [DATA_WIDTH-1:0]   imm,
-    input  logic [DATA_WIDTH-1:0]   alu_result,
-    input  logic [DATA_WIDTH-1:0]   mem_rdata,
+    input logic clk,
+    input logic rst_n,
     
-    output logic                    reg_write_en,
-    output logic [DATA_WIDTH-1:0]   reg_wb_data,
-
-    output logic [DATA_WIDTH-1:0]   alu_operand1,
-    output logic [DATA_WIDTH-1:0]   alu_operand2,
-    output alu_op_t                 alu_op,
-
-    output mem_size_t               mem_size,
-    output logic                    mem_sign,
-    output logic                    mem_we,
-
-    output logic [DATA_WIDTH-1:0]   next_pc,
-    output logic                    pc_write_en
+    alu_if.master       alu_if,
+    sm_if.master        sm_if,
+    idecoder_if.master  idecoder_if,
+    icache_if.master    icache_if,
+    dcache_if.master    dcache_if
 );
-
-    // 需要声明 state 否则编译器会错误判断类型
-    state_t now_state;
-    state_t next_state;
+    /************************ PC *****************************/
+    logic [DATA_WIDTH-1:0] now_pc;
+    logic [DATA_WIDTH-1:0] next_pc;
+    logic pc_write_en;
     logic branch;
-    logic [DATA_WIDTH-1:0] pc_plus4_reg;
     logic [DATA_WIDTH-1:0] pc_branch_to_reg;
-    logic [DATA_WIDTH-1:0] mem_rdata_reg;
-
-    assign pc_plus4_reg = now_pc + 4;
-
-    state_machine state_machine_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .opcode(opcode),
-        .now_state(now_state),
-        .next_state(next_state)
-    );
-
-    alu_controller  alu_controller_inst (
-        .clk(clk),
-        .now_state(now_state),
-        .next_state(next_state),
-        .opcode(opcode),
-        .funct3(funct3),
-        .funct7(funct7),
-        .rs1_data(rs1_data),
-        .rs2_data(rs2_data),
-
-        .imm(imm),
-        .now_pc(now_pc),
-        .alu_operand1(alu_operand1),
-        .alu_operand2(alu_operand2),
-        .alu_op(alu_op)
-    );
 
     // pc_write_en
     always_comb begin
-        pc_write_en = next_state == FETCH;
+        pc_write_en = sm_if.next_state == FETCH;
     end
 
-    always_ff @(posedge clk) begin
-        // 注意 ALU 仅在 DECODE 阶段计算分支去向
-        if (now_state == DECODE) begin
-            pc_branch_to_reg <= {alu_result[31:1], 1'b0};
+    // now_pc
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            now_pc <= '0;
+        end else if (pc_write_en) begin
+            now_pc <= next_pc;
+        end else begin
+            now_pc <= now_pc;
         end
-    end
-
-    // branch
-    always_comb begin
-        // 注意 ALU 在 EXECUTE 阶段计算是否分支
-        // brnach 仅在 EXECUTE 阶段有效
-        case (opcode)
-            OP_JAL, OP_JALR: begin
-                branch = 1'b1;
-            end
-            OP_BRANCH: begin
-                case (funct3)
-                    BRANCH_FUN3_BEQ:  branch = (alu_result == 0);        // 相等时ALU结果为0
-                    BRANCH_FUN3_BNE:  branch = (alu_result != 0);        // 不相等时ALU结果不为0
-                    BRANCH_FUN3_BLT:  branch = (alu_result == 1);        // SLT结果为1表示小于
-                    BRANCH_FUN3_BGE:  branch = (alu_result == 0);        // SLT结果为0表示大于等于
-                    BRANCH_FUN3_BLTU: branch = (alu_result == 1);        // SLTU结果为1表示无符号小于
-                    BRANCH_FUN3_BGEU: branch = (alu_result == 0);        // SLTU结果为0表示无符号大于等于
-                    default: branch = 1'b0;
-                endcase
-            end
-            default: branch = 1'b0;
-        endcase
     end
 
     // next_pc
     always_comb begin
-        // brnach 仅在 EXECUTE 阶段有效
         if (branch) begin
             next_pc = pc_branch_to_reg;
         end else begin
-            next_pc = pc_plus4_reg;  // 顺序执行
+            next_pc = now_pc + 4;
         end
     end
+
+    // pc_branch_to_reg
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            pc_branch_to_reg <= '0;
+        end else if (sm_if.now_state == DECODE && alu_if.resp_valid) begin
+            pc_branch_to_reg <= {alu_if.result[31:1], 1'b0};
+        end
+    end
+    
+    // branch
+    always_comb begin
+        // 注意 ALU 在 EXECUTE 阶段计算是否分支
+        // brnach 仅在 EXECUTE 阶段有效
+        branch = 1'b0;
+        case (idecoder_if.opcode)
+            OP_JAL, OP_JALR: begin
+                branch = 1'b1;
+            end
+            OP_BRANCH: begin
+                case (idecoder_if.funct3)
+                    BRANCH_FUN3_BEQ:  branch = (alu_if.result == 0);        // 相等时ALU结果为0
+                    BRANCH_FUN3_BNE:  branch = (alu_if.result != 0);        // 不相等时ALU结果不为0
+                    BRANCH_FUN3_BLT:  branch = (alu_if.result == 1);        // SLT结果为1表示小于
+                    BRANCH_FUN3_BGE:  branch = (alu_if.result == 0);        // SLT结果为0表示大于等于
+                    BRANCH_FUN3_BLTU: branch = (alu_if.result == 1);        // SLTU结果为1表示无符号小于
+                    BRANCH_FUN3_BGEU: branch = (alu_if.result == 0);        // SLTU结果为0表示无符号大于等于
+                endcase
+            end
+        endcase
+    end
+
+    /************************ SM *****************************/
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            sm_if.state_finish <= 1'b0;
+        end else if (sm_if.state_finish) begin
+            
+        end
+    end
+
+    /************************ ALU *****************************/
+
+
+
+
+
+
+
+
+
+    // 需要声明 state 否则编译器会错误判断类型
+    logic [DATA_WIDTH-1:0] mem_rdata_reg;
+
+
+    // alu_controller  alu_controller_inst (
+    //     .clk(clk),
+    //     .now_state(now_state),
+    //     .next_state(next_state),
+    //     .opcode(opcode),
+    //     .funct3(funct3),
+    //     .funct7(funct7),
+    //     .rs1_data(rs1_data),
+    //     .rs2_data(rs2_data),
+
+    //     .imm(imm),
+    //     .now_pc(now_pc),
+    //     .alu_operand1(alu_operand1),
+    //     .alu_operand2(alu_operand2),
+    //     .alu_op(alu_op)
+    // );
+
 
     // reg_wb_data 写回数据选择
     always_comb begin
@@ -121,7 +127,7 @@ import _riscv_defines::*;
 
     // ALU 在 EXECUTE 阶段计算 MEM 读地址
     always_ff @(posedge clk) begin
-        if (now_state == EXECUTE && opcode == OP_LOAD) begin
+        if (sm_if.now_state == EXECUTE && opcode == OP_LOAD) begin
             mem_rdata_reg <= mem_rdata;
         end else begin
             mem_rdata_reg <= _DEBUG_NO_USE_;
