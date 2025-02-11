@@ -1,186 +1,262 @@
 `include "_riscv_defines.sv"
-`include "_axi_defines.sv"
+`include "_if_defines.sv"
 
-module imem
-import _riscv_defines::*, _axi_defines::*;
-(
-    input  logic                clk,
-    input  logic                rst_n,
-    
-    // AXI读地址通道
-    input  logic [AXI_ID_WIDTH-1:0]   axi_arid,
-    input  logic [AXI_ADDR_WIDTH-1:0] axi_araddr,
-    input  logic [7:0]                axi_arlen,
-    input  logic [2:0]                axi_arsize,
-    input  logic [1:0]                axi_arburst,
-    input  logic                      axi_arvalid,
-    output logic                      axi_arready,
-    
-    // AXI读数据通道
-    output logic [AXI_ID_WIDTH-1:0]   axi_rid,
-    output logic [AXI_DATA_WIDTH-1:0] axi_rdata,
-    output logic [1:0]                axi_rresp,
-    output logic                      axi_rlast,
-    output logic                      axi_rvalid,
-    input  logic                      axi_rready
+// imem核心到AXI从机的接口
+interface inner_if_imem_core_to_axi;
+    import _riscv_defines::*;
+    // 请求信号
+    logic                      req_valid;
+    logic [AXI_ADDR_WIDTH-1:0] req_addr;
+    logic                      processing;
+
+    // 响应信号
+    logic                           resp_valid;
+    logic [ICACHE_LINE_SIZE*8-1:0]  resp_data;  // 8个字(32字节)数据
+
+    // axi-read-slave端口
+    modport requester (
+        output req_valid, req_addr,
+        input  resp_valid, resp_data, processing
+    );
+
+    // imem-core端口
+    modport responder (
+        input  req_valid, req_addr,
+        output resp_valid, resp_data, processing
+    );
+endinterface
+
+// imem顶层模块
+module imem (
+    input  logic        clk,
+    input  logic        rst_n,
+    // AXI从机接口
+    axi_read_if.slave   axi_if
 );
-
-    // 指令存储器，大小为4KB
-    logic [7:0] mem [IMEM_SIZE];
-
-    // AXI状态机
-    typedef enum logic [1:0] {
-        IDLE,
-        READ_DATA,
-        WAIT_READY
-    } axi_state_t;
-
-    axi_state_t current_state, next_state;
+    // 内部信号和接口
+    inner_if_imem_core_to_axi inner_if();
     
-    // AXI控制信号
-    logic [7:0] burst_count;
-    logic [AXI_ADDR_WIDTH-1:0] read_addr;
-    logic [AXI_ID_WIDTH-1:0] read_id;
+    // 实例化子模块
+    imem_core imem_core_inst (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .inner_if  (inner_if.responder)
+    );
+    
+    axi_read_slave axi_read_slave_inst (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .axi_if   (axi_if),
+        .inner_if  (inner_if.requester)
+    );
+endmodule
 
-    // current_state
+// imem核心模块
+module imem_core (
+    input  logic        clk,
+    input  logic        rst_n,
+    // 内存接口
+    inner_if_imem_core_to_axi.responder inner_if
+);
+    import _riscv_defines::*;
+
+    parameter IMEM_SIZE = 1 << 13;
+
+    // 指令存储器
+    logic [31:0] imem_words [IMEM_SIZE];
+    
+    // 延迟计数器(10周期)
+    logic [3:0] delay_counter;
+    
+    // 保存请求信息
+    logic [AXI_ADDR_WIDTH-1:0] curr_addr;
+
+    // 初始化指令存储器
+    initial begin
+        for (int i = 0; i < IMEM_SIZE; i++) begin
+            imem_words[i] = i;
+        end
+    end
+
+    // delay_counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            current_state <= IDLE;
+            delay_counter <= '0;
+        end else if (inner_if.req_valid && !inner_if.processing) begin
+            delay_counter <= 4'd10;  // 模拟读取延迟
+        end else if (delay_counter > 0) begin
+            delay_counter <= delay_counter - 1;
+        end
+    end
+
+    // inner_if.processing
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            inner_if.processing <= 1'b0;
+        end else if (inner_if.req_valid && !inner_if.processing) begin
+            inner_if.processing <= 1'b1;
+        end else if (delay_counter == 0 && inner_if.processing) begin
+            inner_if.processing <= 1'b0;
+        end
+    end
+
+    // 保存请求地址逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            curr_addr <= '0;
+        end else if (inner_if.req_valid && !inner_if.processing) begin
+            curr_addr <= inner_if.req_addr;
+        end
+    end
+
+    // 响应有效信号逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            inner_if.resp_valid <= 1'b0;
+        end else if (delay_counter == 1) begin
+            inner_if.resp_valid <= 1'b1;
         end else begin
-            current_state <= next_state;
+            inner_if.resp_valid <= 1'b0;
+        end
+    end
+
+    // 响应数据逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            inner_if.resp_data <= '0;
+        end else if (delay_counter == 1) begin
+            for (int i = 0; i < 8; i++) begin
+                inner_if.resp_data[i*32 +: 32] <= imem_words[curr_addr[AXI_ADDR_WIDTH-1:2] + i];
+            end
+        end
+    end
+endmodule
+
+// AXI读从机模块
+module axi_read_slave (
+    input  logic       clk,
+    input  logic       rst_n,
+    // AXI接口
+    axi_read_if.slave  axi_if,
+    // IMEM接口
+    inner_if_imem_core_to_axi.requester inner_if
+);
+    import _riscv_defines::*;
+
+    // AXI状态机
+    typedef enum logic [2:0] {
+        IDLE,
+        AR_CHANNEL,
+        WAIT_IMEM,
+        R_CHANNEL,
+        R_DONE
+    } axi_state_t;
+    
+    axi_state_t curr_state, next_state;
+    
+    // 数据发送计数器
+    logic [7:0] send_counter;
+    // 缓存从imem接收的数据
+    logic [ICACHE_LINE_SIZE*8-1:0] cached_data;
+    
+    // 地址和长度寄存器
+    logic [AXI_ADDR_WIDTH-1:0] addr_reg;
+    logic [7:0]                len_reg;
+
+    // curr_state
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            curr_state <= IDLE;
+        end else begin
+            curr_state <= next_state;
         end
     end
 
     // next_state
     always_comb begin
-        next_state = current_state;
-        case (current_state)
+        next_state = curr_state;
+        case (curr_state)
             IDLE: begin
-                if (axi_arvalid) begin
-                    next_state = READ_DATA;
+                if (axi_if.arvalid) begin
+                    next_state = AR_CHANNEL;
                 end
             end
-            READ_DATA: begin
-                if (axi_rready) begin
-                    if (burst_count == axi_arlen) begin
-                        next_state = IDLE;
-                    end
-                end else begin
-                    next_state = WAIT_READY;
+            AR_CHANNEL: begin
+                next_state = WAIT_IMEM;
+            end
+            WAIT_IMEM: begin
+                if (inner_if.resp_valid) begin
+                    next_state = R_CHANNEL;
                 end
             end
-            WAIT_READY: begin
-                if (axi_rready) begin
-                    next_state = READ_DATA;
+            R_CHANNEL: begin
+                if (axi_if.rvalid && axi_if.rready && send_counter == axi_if.arlen) begin
+                    next_state = R_DONE;
                 end
             end
-            default: next_state = IDLE;
+            R_DONE: begin
+                next_state = IDLE;
+            end
         endcase
     end
 
-    // AXI读地址通道控制
+    // req_addr
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_arready <= 1'b0;
-            read_addr <= '0;
-            read_id <= '0;
-        end else begin
-            case (current_state)
-                IDLE: begin
-                    if (axi_arvalid && !axi_arready) begin
-                        axi_arready <= 1'b1;
-                        read_addr <= axi_araddr;
-                        read_id <= axi_arid;
-                    end
-                end
-                default: begin
-                    axi_arready <= 1'b0;
-                end
-            endcase
+            inner_if.req_addr <= '0;
+        end else if (curr_state == IDLE && axi_if.arvalid) begin
+            inner_if.req_addr <= axi_if.araddr;
         end
     end
-    
-    // 模拟读取延迟
-    logic [3:0] delay_counter;
-    parameter READ_DELAY = 4'd2;
 
-    // AXI读数据通道控制
+    // 发送计数器逻辑
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_rvalid <= 1'b0;
-            axi_rlast <= 1'b0;
-            burst_count <= '0;
-            axi_rdata <= '0;
-            axi_rid <= '0;
-            axi_rresp <= AXI_RESP_OKAY;
-        end else begin
-            case (current_state)
-                READ_DATA: begin
-                    if (axi_rready || !axi_rvalid) begin
-                        if (delay_counter == READ_DELAY) begin
-                            axi_rvalid <= 1'b1;
-                            axi_rid <= read_id;
-                            // 读取32位数据（小端序）
-                            axi_rdata <= {
-                                mem[read_addr + burst_count*4 + 3],
-                                mem[read_addr + burst_count*4 + 2],
-                                mem[read_addr + burst_count*4 + 1],
-                                mem[read_addr + burst_count*4]
-                            };
-                            axi_rlast <= (burst_count == axi_arlen);
-                            // 主机接收数据后，burst_count加1，delay_counter清零
-                            if (axi_rready) begin
-                                burst_count <= burst_count + 1;
-                                delay_counter <= '0;
-                            end
-                        end else begin
-                            delay_counter <= delay_counter + 1;
-                            axi_rvalid <= 1'b0;
-                        end
-                    end
-                end
-                default: begin
-                    if (axi_rready) begin
-                        axi_rvalid <= 1'b0;
-                        axi_rlast <= 1'b0;
-                        burst_count <= '0;
-                    end
-                end
-            endcase
+            send_counter <= '0;
+        end else if (curr_state == R_CHANNEL && axi_if.rvalid && axi_if.rready) begin
+            send_counter <= send_counter + 1;
+        end else if (curr_state == IDLE) begin
+            send_counter <= '0;
         end
     end
 
-    // 指向下一条要添加的指令地址
-    int next_instr_addr;
+    // 缓存数据逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cached_data <= '0;
+        end else if (curr_state == WAIT_IMEM && inner_if.resp_valid) begin
+            cached_data <= inner_if.resp_data;
+        end
+    end
 
-    // 复位时初始化指针
-    logic [31:0] temp_mem[0:IMEM_SIZE/4-1];
+    // IMEM请求信号
+    assign inner_if.req_valid = (curr_state == AR_CHANNEL);
     
-    // 复位时初始化内存
-    initial begin
-        // 从文件加载32位指令到临时数组
-        $readmemh(IMEM_PATH, temp_mem);
-        
-        // 将32位指令拆分为8位存储到mem中
-        for (int i = 0; i < IMEM_SIZE/4; i++) begin
-            // 小端序存储 (Little Endian)
-            mem[i*4+0] = temp_mem[i][7:0];  
-            mem[i*4+1] = temp_mem[i][15:8]; 
-            mem[i*4+2] = temp_mem[i][23:16];
-            mem[i*4+3] = temp_mem[i][31:24];
+    // addr_reg
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            addr_reg <= '0;
+        end else if (curr_state == IDLE && axi_if.arvalid) begin
+            addr_reg <= axi_if.araddr;
         end
     end
 
-    // 添加指令的task
-    task add_instruction;
-        input logic [31:0] instr;
-        begin
-            mem[next_instr_addr]   = instr[7:0];  
-            mem[next_instr_addr+1] = instr[15:8]; 
-            mem[next_instr_addr+2] = instr[23:16];
-            mem[next_instr_addr+3] = instr[31:24];
-            next_instr_addr = next_instr_addr + 4;
+    // len_reg
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            len_reg <= '0;
+        end else if (curr_state == IDLE && axi_if.arvalid) begin
+            len_reg <= axi_if.arlen;
         end
-    endtask
+    end
 
-endmodule 
+    // AXI读地址通道信号
+    assign axi_if.arready = (curr_state == IDLE);
+
+    // AXI读数据通道信号
+    assign axi_if.rvalid = (curr_state == R_CHANNEL);
+    assign axi_if.rdata = send_counter[3] ? 0 : cached_data[send_counter * 32 +: 32];
+    assign axi_if.rlast = (curr_state == R_CHANNEL && send_counter == axi_if.arlen);
+    assign axi_if.rresp = AXI_RESP_OKAY;
+
+endmodule

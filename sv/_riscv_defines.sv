@@ -7,6 +7,54 @@ package _riscv_defines;
     parameter _DEBUG_NO_USE_ = 'x;
     parameter IMEM_PATH = "./sv/test/mem_test.bin";
 
+    /*********************** ICACHE 相关参数 ***********************/
+
+    // 地址位宽相关参数
+    parameter ICACHE_BYTE_OFFSET     = 2; // 字节偏移，4字节对齐
+    parameter ICACHE_LINE_OFFSET     = 5; // line内偏移：32字节 = 2^5
+    parameter ICACHE_INDEX_WIDTH     = 6; // 组索引位宽：64 = 2^6
+    parameter ICACHE_TAG_WIDTH       = 32-ICACHE_LINE_OFFSET-ICACHE_INDEX_WIDTH-ICACHE_BYTE_OFFSET; // tag位宽
+    // 基本参数
+    parameter ICACHE_WAY_NUM         = 2;              // 2路组相联
+    parameter ICACHE_SET_NUM         = 2**ICACHE_INDEX_WIDTH; // 64组
+    parameter ICACHE_LINE_SIZE       = 2**ICACHE_LINE_OFFSET; // 每行 32 bytes 8 words
+
+    /*********************** AXI 相关参数 ***********************/
+
+    // AXI地址宽度和数据宽度
+    parameter AXI_ADDR_WIDTH = DATA_WIDTH;
+    parameter AXI_DATA_WIDTH = DATA_WIDTH;
+    parameter AXI_ID_WIDTH   = 4;
+    parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH/8;
+
+    // 突发类型
+    typedef enum logic [1:0] {
+        AXI_BURST_FIXED = 2'b00,
+        AXI_BURST_INCR  = 2'b01,
+        AXI_BURST_WRAP  = 2'b10
+    } axi_burst_type_t;
+
+    // 响应类型
+    typedef enum logic [1:0] {
+        AXI_RESP_OKAY   = 2'b00,
+        AXI_RESP_EXOKAY = 2'b01,
+        AXI_RESP_SLVERR = 2'b10,
+        AXI_RESP_DECERR = 2'b11
+    } axi_resp_t;
+
+    // AXI size编码
+    typedef enum logic [2:0] {
+        AXI_SIZE_1B    = 3'b000,  // 1 byte
+        AXI_SIZE_2B    = 3'b001,  // 2 bytes
+        AXI_SIZE_4B    = 3'b010,  // 4 bytes
+        AXI_SIZE_8B    = 3'b011,  // 8 bytes
+        AXI_SIZE_16B   = 3'b100,  // 16 bytes
+        AXI_SIZE_32B   = 3'b101,  // 32 bytes
+        AXI_SIZE_64B   = 3'b110,  // 64 bytes
+        AXI_SIZE_128B  = 3'b111   // 128 bytes
+    } axi_size_t;
+
+    /*********************** 指令相关参数 ***********************/
 
     // 操作码定义
     typedef enum logic [6:0] {

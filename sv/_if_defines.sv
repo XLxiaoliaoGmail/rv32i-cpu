@@ -1,85 +1,64 @@
 `include "_riscv_defines.sv"
-`include "_axi_defines.sv"
 
-interface cpu_cache_if
+// pc和icache之间的接口
+interface pc_icache_if;
 import _riscv_defines::*;
-(
-);
+    // PC -> ICache信号
+    logic [ADDR_WIDTH-1:0] pc_addr;     // 程序计数器地址
+    logic                  pc_valid;    // PC地址有效信号
+    
+    // ICache -> PC信号
+    logic [DATA_WIDTH-1:0] instruction; // 指令数据
+    logic                  instr_valid; // 指令有效信号
 
-    logic [ADDR_WIDTH-1:0] addr;
-    logic                  req;
-    logic [DATA_WIDTH-1:0] rdata;
-    logic                  ready;
-
-    // CPU视角的端口
-    modport cpu (
-        output addr,
-        output req,
-        input  rdata,
-        input  ready
+    // PC视角的端口
+    modport pc (
+        output pc_addr,
+        output pc_valid,
+        input  instruction,
+        input  instr_valid
     );
 
-    // Cache视角的端口
-    modport cache (
-        input  addr,
-        input  req,
-        output rdata,
-        output ready
+    // ICache视角的端口
+    modport icache (
+        input  pc_addr,
+        input  pc_valid,
+        output instruction,
+        output instr_valid
     );
 endinterface
 
-interface axi_read_if
-import _axi_defines::*;
-(
-);
-    // 读地址通道
-    logic [AXI_ID_WIDTH-1:0]   arid;
+// axi_read_if 接口
+interface axi_read_if;
+import _riscv_defines::*;
+    // AXI读地址通道
     logic [AXI_ADDR_WIDTH-1:0] araddr;
     logic [7:0]                arlen;
-    logic [2:0]                arsize;
-    logic [1:0]                arburst;
+    axi_size_t                 arsize;
+    axi_burst_type_t           arburst;
     logic                      arvalid;
     logic                      arready;
-    
-    // 读数据通道
-    logic [AXI_ID_WIDTH-1:0]   rid;
+
+    // AXI读数据通道
     logic [AXI_DATA_WIDTH-1:0] rdata;
-    logic [1:0]                rresp;
     logic                      rlast;
+    axi_resp_t                 rresp;
     logic                      rvalid;
     logic                      rready;
 
-    // 主设备（Master）视角的端口
+    // 主设备端口
     modport master (
-        output arid,
-        output araddr,
-        output arlen,
-        output arsize,
-        output arburst,
-        output arvalid,
+        output araddr, arlen, arsize, arburst, arvalid,
         input  arready,
-        input  rid,
-        input  rdata,
-        input  rresp,
-        input  rlast,
-        input  rvalid,
+        input  rdata, rlast, rresp, rvalid,
         output rready
     );
 
-    // 从设备（Slave）视角的端口
+    // 从设备端口
     modport slave (
-        input  arid,
-        input  araddr,
-        input  arlen,
-        input  arsize,
-        input  arburst,
-        input  arvalid,
+        input  araddr, arlen, arsize, arburst, arvalid,
         output arready,
-        output rid,
-        output rdata,
-        output rresp,
-        output rlast,
-        output rvalid,
+        output rdata, rlast, rresp, rvalid,
         input  rready
     );
 endinterface
