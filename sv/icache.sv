@@ -1,4 +1,4 @@
-// `include "_axi_defines.sv"
+`include "_axi_defines.sv"
 `include "_if_defines.sv"
 `include "_riscv_defines.sv"
 
