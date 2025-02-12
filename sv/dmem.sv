@@ -8,7 +8,7 @@ import _riscv_defines::*;
     input  logic                    we,
     input  logic [ADDR_WIDTH-1:0]   addr,
     input  logic [DATA_WIDTH-1:0]   wdata,
-    input  mem_size_t               size,  // 00: byte, 01: halfword, 10: word
+    input  mem_read_size_t               size,  // 00: byte, 01: halfword, 10: word
     input  logic                    sign,   // 1: 进行符号扩展, 0: 零扩展
     output logic [DATA_WIDTH-1:0]   rdata
 );

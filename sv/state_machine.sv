@@ -6,6 +6,7 @@ interface sm_if;
     logic    state_finish;
     opcode_t opcode;
     state_t  now_state;
+    state_t  now_state_d1;
     state_t  next_state;
 
     // 定义模块端口方向
@@ -13,6 +14,7 @@ interface sm_if;
         output state_finish,
         output opcode,
         input  now_state,
+        input  now_state_d1,
         input  next_state
     );
 
@@ -20,6 +22,7 @@ interface sm_if;
         input state_finish,
         input opcode,
         output now_state,
+        output now_state_d1,
         output next_state
     );
 endinterface
@@ -31,7 +34,16 @@ import _riscv_defines::*;
     input  logic rst_n,
     sm_if.master sm_if
 );
-    // 时序逻辑：状态更新
+    // now_state_d1
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            sm_if.now_state_d1 <= FETCH;
+        end else begin
+            sm_if.now_state_d1 <= sm_if.now_state;
+        end
+    end
+
+    // now_state
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             sm_if.now_state <= FETCH;
@@ -40,20 +52,16 @@ import _riscv_defines::*;
         end
     end
 
-    // 组合逻辑：下一状态计算
+    // next_state
     always_comb begin
-        // 默认下一状态
         sm_if.next_state = FETCH;
-
         case (sm_if.now_state)
             FETCH: begin
                 sm_if.next_state = DECODE;
             end
-
             DECODE: begin
                 sm_if.next_state = EXECUTE;
             end
-
             EXECUTE: begin
                 case (sm_if.opcode)
                     OP_BRANCH:  sm_if.next_state = FETCH;      // 分支指令执行后直接取指
@@ -68,7 +76,6 @@ import _riscv_defines::*;
                     default:    sm_if.next_state = FETCH;
                 endcase
             end
-
             MEMORY: begin
                 case (sm_if.opcode)
                     OP_LOAD:    sm_if.next_state = WRITEBACK;  // 加载指令需要写回
@@ -76,12 +83,7 @@ import _riscv_defines::*;
                     default:    sm_if.next_state = FETCH;
                 endcase
             end
-
             WRITEBACK: begin
-                sm_if.next_state = FETCH;
-            end
-
-            default: begin
                 sm_if.next_state = FETCH;
             end
         endcase

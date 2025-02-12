@@ -4,7 +4,6 @@ package _riscv_defines;
     parameter ADDR_WIDTH = 32;
     parameter REG_ADDR_WIDTH = 5;
     parameter IMEM_SIZE = 1 << 14;
-    parameter _DEBUG_NO_USE_ = 'x;
     parameter IMEM_PATH = "./sv/test/mem_test.bin";
 
     /*********************** ICACHE 相关参数 ***********************/
@@ -148,8 +147,7 @@ package _riscv_defines;
         ALU_SLTU = 4'b0110,
         ALU_SLL  = 4'b0111,
         ALU_SRL  = 4'b1000,
-        ALU_SRA  = 4'b1001,
-        ALU_DEBUG_NO_USE = _DEBUG_NO_USE_
+        ALU_SRA  = 4'b1001
     } alu_op_t;
 
     // 状态编码
@@ -165,8 +163,7 @@ package _riscv_defines;
     typedef enum logic [1:0] {
         MEM_SIZE_B = 2'b00,
         MEM_SIZE_H = 2'b01,
-        MEM_SIZE_W = 2'b10,
-        _MEM_SIZE_DEBUG_NO_USE = _DEBUG_NO_USE_
-    } mem_size_t;
+        MEM_SIZE_W = 2'b10
+    } mem_read_size_t;
 
 endpackage 

@@ -1,29 +1,29 @@
 `include "_riscv_defines.sv"
-`include "_if_defines.sv"
+`include "_axi_if.sv"
 
 // 外部接口
 interface icache_if;
 import _riscv_defines::*;
     // PC -> ICache信号
     logic [ADDR_WIDTH-1:0] pc_addr;     // 程序计数器地址
-    logic                  pc_valid;    // PC地址有效信号
+    logic                  req_valid;    // PC地址有效信号
     
     // ICache -> PC信号
     logic [DATA_WIDTH-1:0] instruction; // 指令数据
-    logic                  instr_valid; // 指令有效信号
+    logic                  resp_valid; // 指令有效信号
 
     modport requester (
         output pc_addr,
-        output pc_valid,
+        output req_valid,
         input  instruction,
-        input  instr_valid
+        input  resp_valid
     );
 
     modport responder (
         input  pc_addr,
-        input  pc_valid,
+        input  req_valid,
         output instruction,
-        output instr_valid
+        output resp_valid
     );
 endinterface
 
@@ -150,7 +150,7 @@ module icache_core (
         next_state = curr_state;
         case (curr_state)
             IDLE: begin
-                if (icache_if.pc_valid) begin
+                if (icache_if.req_valid) begin
                     next_state = LOOKUP;
                 end
             end
@@ -169,13 +169,13 @@ module icache_core (
         endcase
     end
 
-    // icache_if.instr_valid
+    // icache_if.resp_valid
     always_comb begin
-        icache_if.instr_valid = 1'b0;
+        icache_if.resp_valid = 1'b0;
         if (curr_state == LOOKUP && hit_valid) begin
-            icache_if.instr_valid = 1'b1;
+            icache_if.resp_valid = 1'b1;
         end else if (curr_state == REFILL && _icache_if.resp_valid) begin
-            icache_if.instr_valid = 1'b1;
+            icache_if.resp_valid = 1'b1;
         end
     end
 

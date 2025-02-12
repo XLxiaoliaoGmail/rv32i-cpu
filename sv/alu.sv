@@ -40,10 +40,12 @@ import _riscv_defines::*;
     input  logic    rst_n,
     alu_if.self alu_if
 );
+    parameter _SIMULATED_DELAY = 10;
+
     // 内部信号
     logic signed [DATA_WIDTH-1:0] operand1_signed;
     logic signed [DATA_WIDTH-1:0] operand2_signed;
-    logic [3:0] counter;  // 用于计数10个周期
+    logic [3:0] _counter;  // 用于计数10个周期
     logic [DATA_WIDTH-1:0] result_reg;
     
     assign operand1_signed = alu_if.operand1;
@@ -58,6 +60,7 @@ import _riscv_defines::*;
     
     state_t curr_state, next_state;
 
+    // curr_state
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             curr_state <= IDLE;
@@ -66,11 +69,14 @@ import _riscv_defines::*;
         end
     end
 
+    // _counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            counter <= '0;
+            _counter <= _SIMULATED_DELAY;
         end else if (curr_state == PROCESSING) begin
-            counter <= counter + 1;
+            _counter <= _counter - 1;
+        end else begin
+            _counter <= _SIMULATED_DELAY;
         end
     end
 
@@ -84,7 +90,7 @@ import _riscv_defines::*;
                 end
             end
             PROCESSING: begin
-                if (counter == 4'd9) begin  // 10个周期后完成
+                if (_counter == 0) begin
                     next_state = FINISH;
                 end
             end
@@ -98,7 +104,7 @@ import _riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             result_reg <= '0;
-        end else if (curr_state == PROCESSING && counter == 4'd0) begin
+        end else if (curr_state == PROCESSING && _counter == 0) begin
             case (alu_if.alu_op)
                 ALU_ADD:  result_reg <= alu_if.operand1 + alu_if.operand2;
                 ALU_SUB:  result_reg <= alu_if.operand1 - alu_if.operand2;
@@ -110,7 +116,6 @@ import _riscv_defines::*;
                 ALU_SLL:  result_reg <= alu_if.operand1 << alu_if.operand2[4:0];
                 ALU_SRL:  result_reg <= alu_if.operand1 >> alu_if.operand2[4:0];
                 ALU_SRA:  result_reg <= operand1_signed >>> alu_if.operand2[4:0];
-                default:  result_reg <= _DEBUG_NO_USE_;
             endcase
         end
     end

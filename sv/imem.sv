@@ -1,5 +1,5 @@
 `include "_riscv_defines.sv"
-`include "_if_defines.sv"
+`include "_axi_if.sv"
 
 // imem顶层模块
 module imem (

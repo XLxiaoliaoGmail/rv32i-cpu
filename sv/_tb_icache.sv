@@ -1,5 +1,5 @@
 `include "_riscv_defines.sv"
-`include "_if_defines.sv"
+`include "_axi_if.sv"
 
 module _tb_icache;
     import _riscv_defines::*;

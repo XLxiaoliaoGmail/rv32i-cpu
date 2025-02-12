@@ -37,6 +37,8 @@ interface idecoder_if;
     logic [2:0]                funct3;
     logic [6:0]                funct7;
     logic [DATA_WIDTH-1:0]     imm;
+    logic                      req_valid;
+    logic                      resp_valid;
 
     modport master (
         output instruction,
@@ -46,7 +48,9 @@ interface idecoder_if;
         input  opcode,
         input  funct3,
         input  funct7,
-        input  imm
+        input  imm,
+        input  req_valid,
+        output resp_valid
     );
 
     modport self (
@@ -57,17 +61,47 @@ interface idecoder_if;
         output opcode,
         output funct3,
         output funct7,
-        output imm
+        output imm,
+        input  req_valid,
+        output resp_valid
     );
 endinterface
 
 module idecoder
 import _riscv_defines::*;
 (
+    input  logic clk,
+    input  logic rst_n,
     idecoder_if.self idecoder_if
 );
+    parameter _SIMULATED_DELAY = 4;
+
+    logic [2:0] _counter;
+
+    // _counter
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            _counter <= _SIMULATED_DELAY;
+        end else if (idecoder_if.req_valid) begin
+            _counter <= _counter - 1;
+        end else begin
+            _counter <= _SIMULATED_DELAY;
+        end
+    end
+
+    // resp_valid
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            idecoder_if.resp_valid <= '0;
+        end else if (_counter == 0) begin
+            idecoder_if.resp_valid <= '1;
+        end else begin
+            idecoder_if.resp_valid <= '0;
+        end
+    end
+
     // 指令字段提取
-    assign idecoder_if.opcode = opcode_t'(idecoder_if.instruction[6:0]);  // 添加显式类型转换   
+    assign idecoder_if.opcode = opcode_t'(idecoder_if.instruction[6:0]);  // 添加显式类型转换  
 
     // 根据指令类型选择性地提取字段
     always_comb begin
@@ -90,8 +124,6 @@ import _riscv_defines::*;
             end
 
             // I-type format (Immediate-Register)
-            // 31                   20 19    15 14  12 11      7 6       0
-            // |       idecoder_if.imm[11:0]      |  rs1   |idecoder_if.funct3|   rd    | idecoder_if.opcode |
             OP_I_TYPE, OP_LOAD, OP_JALR: begin
                 idecoder_if.rd_addr = idecoder_if.instruction[11:7];
                 idecoder_if.funct3 = idecoder_if.instruction[14:12];
