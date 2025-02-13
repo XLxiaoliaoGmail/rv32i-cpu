@@ -13,6 +13,34 @@ import _riscv_defines::*;
     dcache_if.master    dcache_if,
     reg_file_if.master  reg_file_if
 );
+    /************************ HELP *****************************/
+
+    logic decode_state_decoder_finish;
+    logic decode_state_alu_finish;
+    logic just_enter_new_state;
+
+    assign just_enter_new_state = sm_if.now_state != sm_if.now_state_d1;
+
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            decode_state_decoder_finish <= '0;
+        end else if (sm_if.now_state == DECODE && idecoder_if.resp_valid) begin
+            decode_state_decoder_finish <= '1;
+        end else if (sm_if.now_state != DECODE) begin
+            decode_state_decoder_finish <= '0;
+        end
+    end
+
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            decode_state_alu_finish <= '0;
+        end else if (sm_if.now_state == DECODE && alu_if.resp_valid) begin
+            decode_state_alu_finish <= '1;
+        end else if (sm_if.now_state != DECODE) begin
+            decode_state_alu_finish <= '0;
+        end
+    end
+
     /************************ PC *****************************/
     logic [DATA_WIDTH-1:0] now_pc;
     logic [DATA_WIDTH-1:0] next_pc;
@@ -26,7 +54,7 @@ import _riscv_defines::*;
 
     // pc_write_en
     always_comb begin
-        pc_write_en = sm_if.next_state == FETCH;
+        pc_write_en = sm_if.next_state == FETCH && sm_if.state_finish;
     end
 
     // now_pc
@@ -82,80 +110,45 @@ import _riscv_defines::*;
 
     /************************ SM *****************************/
 
-    // now_state
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            sm_if.now_state <= FETCH;
-        end else if (sm_if.state_finish) begin
-            sm_if.now_state <= sm_if.next_state;
-        end
-    end
-
-    // next_state
-    always_comb begin
-        sm_if.next_state = FETCH;
-        case (sm_if.now_state)
-            FETCH: begin
-                sm_if.next_state = DECODE;
-            end
-            DECODE: begin
-                sm_if.next_state = EXECUTE;
-            end
-            EXECUTE: begin
-                case (idecoder_if.opcode)
-                    OP_BRANCH:  sm_if.next_state = FETCH;      // 分支指令执行后直接取指
-                    OP_LOAD:    sm_if.next_state = MEMORY;     // 加载指令需要访存
-                    OP_STORE:   sm_if.next_state = MEMORY;     // 存储指令需要访存
-                    OP_R_TYPE:  sm_if.next_state = WRITEBACK;  // R型指令直接写回
-                    OP_I_TYPE:  sm_if.next_state = WRITEBACK;  // I型算术指令直接写回
-                    OP_JAL:     sm_if.next_state = WRITEBACK;  // JAL需要写回
-                    OP_JALR:    sm_if.next_state = WRITEBACK;  // JALR需要写回
-                    OP_LUI:     sm_if.next_state = WRITEBACK;  // LUI直接写回
-                    OP_AUIPC:   sm_if.next_state = WRITEBACK;  // AUIPC直接写回
-                    default:    sm_if.next_state = FETCH;
-                endcase
-            end
-            MEMORY: begin
-                case (idecoder_if.opcode)
-                    OP_LOAD:    sm_if.next_state = WRITEBACK;  // 加载指令需要写回
-                    OP_STORE:   sm_if.next_state = FETCH;      // 存储指令完成后直接取指
-                    default:    sm_if.next_state = FETCH;
-                endcase
-            end
-            WRITEBACK: begin
-                sm_if.next_state = FETCH;
-            end
-            default: begin
-                sm_if.next_state = FETCH;
-            end
-        endcase
-    end
+    // opcode
+    assign sm_if.opcode = idecoder_if.opcode;
 
     // state_finish
     always_comb begin
+        sm_if.state_finish = 1'b0;
         case (sm_if.now_state)
             FETCH: begin
                 sm_if.state_finish = icache_if.resp_valid;
             end
             DECODE: begin
-                sm_if.state_finish = idecoder_if.resp_valid;
+                case (idecoder_if.opcode)
+                    OP_JAL, OP_JALR, OP_BRANCH: begin
+                        // 若有跳转命令，则要等到 decoder 和 alu 都完成
+                        sm_if.state_finish = (idecoder_if.resp_valid && decode_state_alu_finish) || 
+                                             (alu_if.resp_valid && decode_state_decoder_finish);
+                    end
+                    default: begin
+                        sm_if.state_finish = idecoder_if.resp_valid;
+                    end
+                endcase
             end
-            
+            EXECUTE: begin
+                sm_if.state_finish = alu_if.resp_valid;
+            end
+            MEMORY: begin
+                sm_if.state_finish = dcache_if.resp_valid;
+            end
+            WRITEBACK: begin
+                // 假设寄存器写入是瞬间完成的
+                sm_if.state_finish = '1;
+            end
         endcase
     end
 
     /************************ ICACHE *****************************/
 
     // icache_if.req_valid
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            icache_if.req_valid <= '0;
-        end else if (sm_if.now_state == FETCH) begin
-            icache_if.req_valid <= '1;
-        end else begin
-            icache_if.req_valid <= '0;
-        end
-    end
+    assign icache_if.req_valid = sm_if.now_state == FETCH;
 
     // icache_if.pc_addr
     always_comb begin
@@ -164,16 +157,11 @@ import _riscv_defines::*;
 
     /************************ DECODER *****************************/
 
-    // idecoder_if.req_valid
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            idecoder_if.req_valid <= '0;
-        end else if (sm_if.now_state == DECODE) begin
-            idecoder_if.req_valid <= '1;
-        end else begin
-            idecoder_if.req_valid <= '0;
-        end
-    end
+    // req_valid
+    assign idecoder_if.req_valid = (sm_if.now_state == DECODE) && !decode_state_decoder_finish;
+
+    // instruction
+    assign idecoder_if.instruction = icache_if.instruction;
 
     /************************ REG_FILE *****************************/
 
@@ -182,17 +170,18 @@ import _riscv_defines::*;
     assign reg_file_if.rd_addr = idecoder_if.rd_addr;
     
     // reg_file_if.write_en
-    always_comb begin
-        reg_file_if.write_en = '0;
-        if (sm_if.now_state == WRITEBACK) begin
-            case (idecoder_if.opcode)
-                OP_R_TYPE, OP_I_TYPE, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
-                    reg_file_if.write_en = alu_if.resp_valid;
-                OP_LOAD:
-                    reg_file_if.write_en = dcache_if.resp_valid;
-            endcase
-        end
-    end
+    assign reg_file_if.write_en = sm_if.now_state == WRITEBACK;
+    // always_comb begin
+    //     reg_file_if.write_en = '0;
+    //     if (sm_if.now_state == WRITEBACK) begin
+    //         case (idecoder_if.opcode)
+    //             OP_R_TYPE, OP_I_TYPE, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
+    //                 reg_file_if.write_en = alu_if.resp_valid;
+    //             OP_LOAD:
+    //                 reg_file_if.write_en = dcache_if.resp_valid;
+    //         endcase
+    //     end
+    // end
 
     // reg_file_if.rd_data
     always_comb begin
@@ -206,11 +195,19 @@ import _riscv_defines::*;
     /************************ ALU *****************************/
 
     // alu_if.req_valid
-    always_comb begin
-        // 状态转换之后立即开始计算
-        alu_if.req_valid = '0;
-        if (sm_if.now_state == EXECUTE || sm_if.now_state == DECODE) begin
-            alu_if.req_valid = sm_if.now_state_d1 != sm_if.now_state;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            alu_if.req_valid <= '0;
+        end else if (alu_if.resp_valid) begin
+            alu_if.req_valid <= '0;
+        end else if (sm_if.now_state_d1 != sm_if.now_state && sm_if.now_state == EXECUTE)begin
+            alu_if.req_valid <= '1;
+        end else begin
+            case (idecoder_if.opcode)
+                OP_JAL, OP_BRANCH, OP_JALR: begin
+                    alu_if.req_valid <= just_enter_new_state;
+                end
+            endcase
         end
     end
 
@@ -218,6 +215,9 @@ import _riscv_defines::*;
     // alu_if.operand2
     // alu_if.alu_op
     always_comb begin
+        alu_if.operand1 = '0;
+        alu_if.operand2 = '0;
+        alu_if.alu_op = ALU_ADD;
         // 由于是上升沿触发 需要提前一个状态
         case (sm_if.now_state)
             // DECODE 阶段计算跳转
@@ -337,16 +337,34 @@ import _riscv_defines::*;
     /************************ DCACHE *****************************/
 
     // dcache_if.req_valid
-    assign dcache_if.req_valid = sm_if.now_state == MEMORY;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            dcache_if.req_valid <= '0;
+        end else if (sm_if.now_state == MEMORY && just_enter_new_state) begin
+            dcache_if.req_valid <= '1;
+        end else if (dcache_if.resp_valid)begin
+            dcache_if.req_valid <= '0;
+        end
+    end
 
     // dcache_if.write_en
     assign dcache_if.write_en = sm_if.now_state == MEMORY && idecoder_if.opcode == OP_STORE;
 
     // dcache_if.addr
-    assign dcache_if.addr = alu_if.result;
+    always_comb begin
+        dcache_if.addr = '0;
+        if (sm_if.now_state == MEMORY) begin
+            dcache_if.addr = alu_if.result;
+        end 
+    end
 
     // dcache_if.write_data
-    assign dcache_if.write_data = reg_file_if.rs2_data;
+    always_comb begin
+        dcache_if.write_data = '0;
+        if (sm_if.now_state == MEMORY && idecoder_if.opcode == OP_STORE) begin
+            dcache_if.write_data = reg_file_if.rs2_data;
+        end
+    end
 
     // dcache_if.size
     always_comb begin

@@ -34,7 +34,7 @@ interface _imem_if;
 
     // 响应信号
     logic                           resp_valid;
-    logic [ICACHE_LINE_SIZE*8-1:0]  resp_data;  // 8个字(32字节)数据
+    logic [ICACHE_LINE_BIT_LEN*8-1:0]  resp_data;  // 8个字(32字节)数据
 
     modport requester (
         output req_valid, req_addr,
@@ -69,10 +69,12 @@ module imem_core (
 
     // 初始化指令存储器
     initial begin
-        for (int i = 0; i < IMEM_SIZE; i++) begin
-            imem_words[i] = i;
-        end
+        read_imem();
     end
+
+    task read_imem();
+        $readmemh("./sv/test/mem_test.bin", imem_words);
+    endtask
 
     // delay_counter
     always_ff @(posedge clk or negedge rst_n) begin
@@ -153,7 +155,7 @@ module axi_read_slave (
     // 数据发送计数器
     logic [7:0] send_counter;
     // 缓存从imem接收的数据
-    logic [ICACHE_LINE_SIZE*8-1:0] cached_data;
+    logic [ICACHE_LINE_BIT_LEN*8-1:0] cached_data;
     
     // 地址和长度寄存器
     logic [AXI_ADDR_WIDTH-1:0] addr_reg;

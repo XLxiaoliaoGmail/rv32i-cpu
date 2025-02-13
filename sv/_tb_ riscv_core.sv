@@ -15,7 +15,6 @@ module _tb_riscv_core();
         .instruction (instruction)
     );
 
-
     // 生成时钟信号，周期为 10
     initial begin
         clk = 0;
@@ -31,11 +30,14 @@ module _tb_riscv_core();
         end
     end
 
+    // 超时自动停止
+    initial begin
+        #100000;
+        $stop;
+    end
 
     // 生成复位信号
     initial begin
-        rst_n = 1;
-        #10
         rst_n = 0;
         #10 rst_n = 1;
     end

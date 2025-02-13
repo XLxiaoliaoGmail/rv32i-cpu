@@ -9,14 +9,14 @@ package _riscv_defines;
     /*********************** ICACHE 相关参数 ***********************/
 
     // 地址位宽相关参数
-    parameter ICACHE_BYTE_OFFSET     = 2; // 字节偏移，4字节对齐
-    parameter ICACHE_LINE_OFFSET     = 5; // line内偏移：32字节 = 2^5
+    parameter ICACHE_BYTE_OFFSET     = 2; // 字节偏移，4字节对齐，一个指令占4字节
+    parameter ICACHE_LINE_OFFSET     = 3; // 一个line存储8条命令
     parameter ICACHE_INDEX_WIDTH     = 6; // 组索引位宽：64 = 2^6
     parameter ICACHE_TAG_WIDTH       = 32-ICACHE_LINE_OFFSET-ICACHE_INDEX_WIDTH-ICACHE_BYTE_OFFSET; // tag位宽
     // 基本参数
     parameter ICACHE_WAY_NUM         = 2;              // 2路组相联
     parameter ICACHE_SET_NUM         = 2**ICACHE_INDEX_WIDTH; // 64组
-    parameter ICACHE_LINE_SIZE       = 2**ICACHE_LINE_OFFSET; // 每行 32 bytes 8 words
+    parameter ICACHE_LINE_BIT_LEN    = 1 << (2 + ICACHE_BYTE_OFFSET + ICACHE_LINE_OFFSET); // 一个line的位宽
 
     /*********************** AXI 相关参数 ***********************/
 
@@ -152,6 +152,7 @@ package _riscv_defines;
 
     // 状态编码
     typedef enum logic [2:0] {
+        IDLE     = 3'b111,
         FETCH    = 3'b000,
         DECODE   = 3'b001,
         EXECUTE  = 3'b010,

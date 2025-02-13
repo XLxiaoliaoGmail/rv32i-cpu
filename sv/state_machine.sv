@@ -32,7 +32,7 @@ import _riscv_defines::*;
 (
     input  logic clk,
     input  logic rst_n,
-    sm_if.master sm_if
+    sm_if.self sm_if
 );
     // now_state_d1
     always_ff @(posedge clk, negedge rst_n) begin
@@ -54,7 +54,7 @@ import _riscv_defines::*;
 
     // next_state
     always_comb begin
-        sm_if.next_state = FETCH;
+        sm_if.next_state = IDLE;
         case (sm_if.now_state)
             FETCH: begin
                 sm_if.next_state = DECODE;

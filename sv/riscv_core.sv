@@ -17,7 +17,7 @@ import _riscv_defines::*;
     reg_file_if   reg_file_if();
     axi_read_if   imem_axi_if();
 
-    assign instruction = icache_if.instruction;
+    assign instruction = icache_if.instruction; 
 
     control_unit control_unit_inst (
         .clk          (clk),
@@ -51,7 +51,7 @@ import _riscv_defines::*;
     icache icache_inst (
         .clk          (clk),
         .rst_n        (rst_n),
-        .icache_if    (icache_if.responder),
+        .icache_if    (icache_if.self),
         .axi_if       (imem_axi_if.master)
     );
 

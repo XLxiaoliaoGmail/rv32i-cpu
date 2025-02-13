@@ -12,14 +12,14 @@ import _riscv_defines::*;
     logic [DATA_WIDTH-1:0] instruction; // 指令数据
     logic                  resp_valid; // 指令有效信号
 
-    modport requester (
+    modport master (
         output pc_addr,
         output req_valid,
         input  instruction,
         input  resp_valid
     );
 
-    modport responder (
+    modport self (
         input  pc_addr,
         input  req_valid,
         output instruction,
@@ -29,33 +29,33 @@ endinterface
 
 // icache顶层模块
 module icache (
-    input  logic        clk,
-    input  logic        rst_n,
+    input  logic clk,
+    input  logic rst_n,
     // CPU接口
-    icache_if.responder icache_if,
+    icache_if.self icache_if,
     // AXI接口
     axi_read_if.master  axi_if
 );
 
-    _icache_if _icache_if();
+    _icache_inner_if _icache_inner_if();
     
     icache_core icache_core_inst (
         .clk      (clk),
         .rst_n    (rst_n),
         .icache_if(icache_if),
-        ._icache_if(_icache_if.requester)
+        ._icache_inner_if(_icache_inner_if.requester)
     );
     
     axi_read_master axi_read_master_inst (
         .clk      (clk),
         .rst_n    (rst_n),
         .axi_if      (axi_if),
-        ._icache_if(_icache_if.responder)
+        ._icache_inner_if(_icache_inner_if.responder)
     );
 endmodule
 
-// _icache_if 接口
-interface _icache_if;
+// _icache_inner_if 接口
+interface _icache_inner_if;
     import _riscv_defines::*;
     // 请求信号
     logic                      req_valid;
@@ -63,7 +63,7 @@ interface _icache_if;
 
     // 响应信号
     logic                   resp_valid;
-    logic [ICACHE_LINE_SIZE*8-1:0] resp_data;
+    logic [ICACHE_LINE_BIT_LEN*8-1:0] resp_data;
 
     modport requester (
         output req_valid, req_addr,
@@ -81,9 +81,9 @@ module icache_core (
     input  logic        clk,
     input  logic        rst_n,
 
-    icache_if.responder icache_if,
+    icache_if.self icache_if,
 
-    _icache_if.requester _icache_if
+    _icache_inner_if.requester _icache_inner_if
 );
     import _riscv_defines::*;
 
@@ -91,7 +91,7 @@ module icache_core (
     typedef struct packed {
         logic valid; // 有效位
         logic [ICACHE_TAG_WIDTH-1:0] tag;   // tag域
-        logic [ICACHE_LINE_SIZE*8-1:0] data;// 数据域(32字节=256位)
+        logic [ICACHE_LINE_BIT_LEN*8-1:0] data;// 数据域(32字节=256位)
     } cache_line_t;
 
     // 缓存存储
@@ -162,7 +162,7 @@ module icache_core (
                 end
             end
             REFILL: begin
-                if (_icache_if.resp_valid) begin
+                if (_icache_inner_if.resp_valid) begin
                     next_state = IDLE;
                 end
             end
@@ -174,37 +174,38 @@ module icache_core (
         icache_if.resp_valid = 1'b0;
         if (curr_state == LOOKUP && hit_valid) begin
             icache_if.resp_valid = 1'b1;
-        end else if (curr_state == REFILL && _icache_if.resp_valid) begin
+        end else if (curr_state == REFILL && _icache_inner_if.resp_valid) begin
             icache_if.resp_valid = 1'b1;
         end
     end
 
-    // _icache_if.req_valid
+    // _icache_inner_if.req_valid
     always_comb begin
-        _icache_if.req_valid = 1'b0;
+        _icache_inner_if.req_valid = 1'b0;
         if (curr_state == LOOKUP && !hit_valid) begin
-            _icache_if.req_valid = 1'b1;
+            _icache_inner_if.req_valid = 1'b1;
         end
     end
 
     // icache_if.instruction
-    always_comb begin
-        icache_if.instruction = 32'b0;
-        if (curr_state == LOOKUP && hit_valid) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            icache_if.instruction <= '0;
+        end else if (curr_state == LOOKUP && hit_valid) begin
             // Just 2 ways
-            icache_if.instruction = cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
+            icache_if.instruction <= cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
                 addr_line_offset * 32 +: 32];
-        end else if (curr_state == REFILL && _icache_if.resp_valid) begin
-            icache_if.instruction = _icache_if.resp_data[addr_line_offset * 32 +: 32];
+        end else if (curr_state == REFILL && _icache_inner_if.resp_valid) begin
+            icache_if.instruction <= _icache_inner_if.resp_data[addr_line_offset * 32 +: 32];
         end
     end
 
-    // _icache_if.req_addr
+    // _icache_inner_if.req_addr
     always_comb begin
-        _icache_if.req_addr = 32'b0;
+        _icache_inner_if.req_addr = 32'b0;
         if (curr_state == LOOKUP && !hit_valid) begin
             // 一次请求 ICACHE_LINE_OFFSET 个命令, 故需要偏移 ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET 个字节
-            _icache_if.req_addr = {icache_if.pc_addr[DATA_WIDTH-1:ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET], {(ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET){1'b0}}};
+            _icache_inner_if.req_addr = {icache_if.pc_addr[DATA_WIDTH-1:ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET], {(ICACHE_LINE_OFFSET+ICACHE_BYTE_OFFSET){1'b0}}};
         end
     end
 
@@ -220,10 +221,10 @@ module icache_core (
                     cache_mem[i][j].valid <= 1'b0;
                 end
             end
-        end else if (curr_state == REFILL && _icache_if.resp_valid) begin
+        end else if (curr_state == REFILL && _icache_inner_if.resp_valid) begin
             cache_mem[replace_way][addr_index].valid <= 1'b1;
             cache_mem[replace_way][addr_index].tag <= addr_tag;
-            cache_mem[replace_way][addr_index].data <= _icache_if.resp_data;
+            cache_mem[replace_way][addr_index].data <= _icache_inner_if.resp_data;
         end
     end
 
@@ -233,7 +234,7 @@ module icache_core (
             for (int i = 0; i < ICACHE_SET_NUM; i++) begin
                 lru[i] <= 1'b0;
             end
-        end else if (curr_state == REFILL && _icache_if.resp_valid) begin
+        end else if (curr_state == REFILL && _icache_inner_if.resp_valid) begin
             lru[addr_index] <= ~replace_way;
         end
     end
@@ -248,7 +249,7 @@ module axi_read_master (
 
     axi_read_if.master axi_if,
 
-    _icache_if.responder _icache_if
+    _icache_inner_if.responder _icache_inner_if
 );
     import _riscv_defines::*;
 
@@ -266,7 +267,7 @@ module axi_read_master (
     // 数据计数器（用于接收32字节数据）
     logic [4:0] data_counter;
     // 缓存接收到的数据
-    logic [ICACHE_LINE_SIZE*8-1:0] cached_data;
+    logic [ICACHE_LINE_BIT_LEN*8-1:0] cached_data;
 
     // 状态机时序逻辑
     always_ff @(posedge clk or negedge rst_n) begin
@@ -282,7 +283,7 @@ module axi_read_master (
         next_state = curr_state;
         case (curr_state)
             IDLE: begin
-                if (_icache_if.req_valid) begin
+                if (_icache_inner_if.req_valid) begin
                     next_state = AR_CHANNEL;
                 end
             end
@@ -303,8 +304,8 @@ module axi_read_master (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             req_addr_reg <= '0;
-        end else if (curr_state == IDLE && _icache_if.req_valid) begin
-            req_addr_reg <= _icache_if.req_addr;
+        end else if (curr_state == IDLE && _icache_inner_if.req_valid) begin
+            req_addr_reg <= _icache_inner_if.req_addr;
         end
     end
 
@@ -330,11 +331,11 @@ module axi_read_master (
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            _icache_if.resp_valid <= '0;
+            _icache_inner_if.resp_valid <= '0;
         end else if (curr_state == R_CHANNEL && axi_if.rvalid && axi_if.rlast) begin
-            _icache_if.resp_valid <= '1;
+            _icache_inner_if.resp_valid <= '1;
         end else begin
-            _icache_if.resp_valid <= '0;
+            _icache_inner_if.resp_valid <= '0;
         end
     end
 
@@ -349,6 +350,6 @@ module axi_read_master (
     assign axi_if.rready = (curr_state == R_CHANNEL);
 
     // axi_rm_if响应信号
-    // assign _icache_if.resp_valid = (curr_state == R_CHANNEL && axi_if.rvalid && axi_if.rlast);
-    assign _icache_if.resp_data = cached_data;
+    // assign _icache_inner_if.resp_valid = (curr_state == R_CHANNEL && axi_if.rvalid && axi_if.rlast);
+    assign _icache_inner_if.resp_data = cached_data;
 endmodule

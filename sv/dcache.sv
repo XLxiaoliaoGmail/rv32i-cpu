@@ -44,8 +44,16 @@ module dcache (
 
     parameter _SIMULATED_DELAY = 4;
 
-    logic [DATA_WIDTH-1:0] mem [4096-1:0];
+    logic [7:0] mem [4096];
     logic [4:0] _counter;
+    
+    logic [7:0]  byte_data;
+    logic [15:0] half_data;
+    logic [31:0] word_data;
+
+    assign byte_data = mem[dcache_if.addr];
+    assign half_data = {mem[dcache_if.addr+1], mem[dcache_if.addr]};
+    assign word_data = {mem[dcache_if.addr+3], mem[dcache_if.addr+2], mem[dcache_if.addr+1], mem[dcache_if.addr]};
 
     // _counter
     always_ff @(posedge clk, negedge rst_n) begin
@@ -57,8 +65,6 @@ module dcache (
             _counter <= _SIMULATED_DELAY;
         end
     end
-    // read_data
-    assign dcache_if.read_data = mem[dcache_if.addr];
 
     // mem
     always_ff @(posedge clk, negedge rst_n) begin
@@ -67,7 +73,21 @@ module dcache (
                 mem[i] <= '0;
             end
         end else if (dcache_if.req_valid && dcache_if.write_en) begin
-            mem[dcache_if.addr] <= dcache_if.write_data;
+            case (dcache_if.size)
+                MEM_SIZE_B: begin
+                    mem[dcache_if.addr] <= dcache_if.write_data[7:0];
+                end
+                MEM_SIZE_H: begin 
+                    mem[dcache_if.addr]   <= dcache_if.write_data[7:0];
+                    mem[dcache_if.addr+1] <= dcache_if.write_data[15:8];
+                end
+                MEM_SIZE_W: begin
+                    mem[dcache_if.addr]   <= dcache_if.write_data[7:0];
+                    mem[dcache_if.addr+1] <= dcache_if.write_data[15:8];
+                    mem[dcache_if.addr+2] <= dcache_if.write_data[23:16];
+                    mem[dcache_if.addr+3] <= dcache_if.write_data[31:24];
+                end
+            endcase
         end
     end
 
@@ -79,6 +99,19 @@ module dcache (
             dcache_if.resp_valid <= 1'b1;
         end else begin
             dcache_if.resp_valid <= 1'b0;
+        end
+    end
+    
+    // read_data
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            dcache_if.read_data <= '0;
+        end else if (_counter == 0) begin
+            case (dcache_if.size)
+                MEM_SIZE_B: dcache_if.read_data <= dcache_if.sign ? {{24{byte_data[7]}}, byte_data} : {24'b0, byte_data};
+                MEM_SIZE_H: dcache_if.read_data <= dcache_if.sign ? {{16{half_data[15]}}, half_data} : {16'b0, half_data};   
+                MEM_SIZE_W: dcache_if.read_data <= word_data;
+            endcase
         end
     end
 
