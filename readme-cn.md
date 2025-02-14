@@ -1,8 +1,11 @@
 # RISC-V RV32I 多周期CPU设计
 
 ## 项目简介
-这是一个基于RISC-V-32I指令集的32位多周期CPU设计项目。采用SystemVerilog硬件描述语言实现，支持基础指令系统，包括算术运算、分支跳转以及内存访问操作。
+这是一个基于RISC-V-32I指令集的32位多周期CPU设计项目。采用SystemVerilog硬件描述语言实现，支持基础指令系统，包括算术运算、分支跳转以及内存访问操作，实现了基本的缓存功能，各模块间均通过interface通信。
 ****
+![image](https://github.com/user-attachments/assets/52b76d8e-1400-4e2a-85b7-5071cf069289)
+
+
 ## **核心特性**
 - **多周期执行**: 指令执行分为五个精确控制的阶段
   - 取指 (Instruction Fetch)
