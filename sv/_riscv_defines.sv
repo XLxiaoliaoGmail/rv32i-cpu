@@ -18,11 +18,25 @@ package _riscv_defines;
     parameter ICACHE_SET_NUM         = 2**ICACHE_INDEX_WIDTH; // 64组
     parameter ICACHE_LINE_BIT_LEN    = 1 << (2 + ICACHE_BYTE_OFFSET + ICACHE_LINE_OFFSET); // 一个line的位宽
 
+    /*********************** DCACHE 相关参数 ***********************/
+
+    // 地址位宽相关参数
+    parameter DCACHE_LINE_OFFSET     = 5;  // 一个cache line 32字节
+    parameter DCACHE_INDEX_WIDTH     = 6;  // 组索引位宽：64组
+    parameter DCACHE_TAG_WIDTH       = 32-DCACHE_LINE_OFFSET-DCACHE_INDEX_WIDTH; // tag位宽
+    
+    // 基本参数
+    parameter DCACHE_WAY_NUM         = 2;   // 2路组相联
+    parameter DCACHE_SET_NUM         = 2**DCACHE_INDEX_WIDTH; // 64组
+    parameter DCACHE_LINE_SIZE       = 2**DCACHE_LINE_OFFSET; // 缓存行大小：32字节
+
     /*********************** AXI 相关参数 ***********************/
 
     // AXI地址宽度和数据宽度
-    parameter AXI_ADDR_WIDTH = DATA_WIDTH;
-    parameter AXI_DATA_WIDTH = DATA_WIDTH;
+    parameter AXI_ADDR_WIDTH_LOG2 = 5;
+    parameter AXI_DATA_WIDTH_LOG2 = 5;
+    parameter AXI_ADDR_WIDTH = 2**AXI_ADDR_WIDTH_LOG2;
+    parameter AXI_DATA_WIDTH = 2**AXI_DATA_WIDTH_LOG2;
     parameter AXI_ID_WIDTH   = 4;
     parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH/8;
 

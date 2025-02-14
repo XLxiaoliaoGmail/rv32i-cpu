@@ -1,11 +1,13 @@
 `include "_riscv_defines.sv"
 
 // axi_read_if 接口
-interface axi_read_if;
+interface axi_read_if #(
+    parameter _ARLEN_WIDTH
+);
 import _riscv_defines::*;
     // AXI读地址通道
     logic [AXI_ADDR_WIDTH-1:0] araddr;
-    logic [7:0]                arlen;
+    logic [_ARLEN_WIDTH-1:0]   arlen;
     axi_size_t                 arsize;
     axi_burst_type_t           arburst;
     logic                      arvalid;
@@ -36,11 +38,13 @@ import _riscv_defines::*;
 endinterface
 
 // axi_write_if 接口
-interface axi_write_if;
+interface axi_write_if #(
+    parameter _AWLEN_WIDTH
+);
 import _riscv_defines::*;
     // AXI写地址通道
     logic [AXI_ADDR_WIDTH-1:0] awaddr;
-    logic [7:0]                awlen;
+    logic [_AWLEN_WIDTH-1:0]   awlen;
     axi_size_t                 awsize;
     axi_burst_type_t           awburst;
     logic                      awvalid;
