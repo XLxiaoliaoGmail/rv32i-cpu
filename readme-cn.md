@@ -4,6 +4,7 @@
 这是一个基于RISC-V-32I指令集的32位多周期CPU设计项目。采用SystemVerilog硬件描述语言实现，支持基础指令系统，包括算术运算、分支跳转以及内存访问操作，模拟了一些器件的延迟，实现了基本的缓存功能，各模块间均通过interface通信。
 
 使用Modelsim进行了仿真验证。
+
 ![image](https://github.com/user-attachments/assets/52b76d8e-1400-4e2a-85b7-5071cf069289)
 
 ## **核心特性**
