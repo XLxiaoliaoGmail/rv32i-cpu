@@ -5,8 +5,6 @@
 
 使用Modelsim进行了仿真验证。
 ![image](https://github.com/user-attachments/assets/52b76d8e-1400-4e2a-85b7-5071cf069289)
-****
-
 
 ## **核心特性**
 - **多周期执行**: 指令执行分为五个精确控制的阶段
