@@ -72,7 +72,6 @@ Not yet implemented
 
 ### Data Memory (dmem)
 Main data memory module:
-- 4KB storage space
 - Supports different granularity of data access (byte, half-word, word)
 - Implements sign extension of data
 - Supports byte-aligned access operations
