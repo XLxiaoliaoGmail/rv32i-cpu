@@ -85,12 +85,12 @@ module dcache (
     logic [DCACHE_OFFSET_WIDTH-1:0]   addr_line_offset_align_to_word;
     logic [DCACHE_OFFSET_WIDTH-1:0]   addr_line_offset_align_to_hword;
 
-    assign addr_tag = dcache_if.req_addr[DATA_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH];
-    assign addr_index = dcache_if.req_addr[DATA_WIDTH-DCACHE_TAG_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH-DCACHE_INDEX_WIDTH];
+    assign addr_tag = save_option.req_addr[DATA_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH];
+    assign addr_index = save_option.req_addr[DATA_WIDTH-DCACHE_TAG_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH-DCACHE_INDEX_WIDTH];
 
-    assign addr_line_offset = dcache_if.req_addr[DCACHE_OFFSET_WIDTH-1 : 0];
-    assign addr_line_offset_align_to_word = {dcache_if.req_addr[DCACHE_OFFSET_WIDTH-1 : 2], 2'b00};
-    assign addr_line_offset_align_to_hword = {dcache_if.req_addr[DCACHE_OFFSET_WIDTH-1 : 1], 1'b0};
+    assign addr_line_offset = save_option.req_addr[DCACHE_OFFSET_WIDTH-1 : 0];
+    assign addr_line_offset_align_to_word = {save_option.req_addr[DCACHE_OFFSET_WIDTH-1 : 2], 2'b00};
+    assign addr_line_offset_align_to_hword = {save_option.req_addr[DCACHE_OFFSET_WIDTH-1 : 1], 1'b0};
 
     /************************ SAVE OPTION *****************************/
 
@@ -179,7 +179,7 @@ module dcache (
             end
             REFILL_AXI_R: begin
                 if (axi_read_if.rlast) begin
-                    next_state = dcache_if.write_en ? LOOKUP : IDLE;
+                    next_state = save_option.write_en ? LOOKUP : IDLE;
                 end
             end
         endcase
@@ -217,32 +217,32 @@ module dcache (
     always_comb begin
         read_buf <= '0;
         if (now_state == LOOKUP && some_way_hit) begin
-            case (dcache_if.size)
+            case (save_option.size)
                 MEM_SIZE_W: begin
                     read_buf <= {
-                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd0],
-                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd1],
+                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd3],
                         cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd2],
-                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd3]
+                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd1],
+                        cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd0]
                     };
                 end
                 MEM_SIZE_H: begin
-                    if (dcache_if.sign) begin
+                    if (save_option.sign) begin
                         read_buf <= {
-                            {16{cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd0][7]}},
-                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd0],
-                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd1]
+                            {16{cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd1][7]}},
+                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd1],
+                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd0]
                         };
                     end else begin
                         read_buf <= {
                             16'h0000,
-                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd0],
-                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd1]
+                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd1],
+                            cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 'd0]
                         };
                     end
                 end
                 MEM_SIZE_B: begin
-                    if (dcache_if.sign) begin
+                    if (save_option.sign) begin
                         read_buf <= {
                             {24{cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd0][7]}},
                             cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 'd0]
@@ -264,9 +264,9 @@ module dcache (
     // dcache_if.resp_valid
     always_comb begin
         dcache_if.resp_valid = 1'b0;
-        if (!dcache_if.write_en && now_state == LOOKUP && some_way_hit) begin
+        if (!save_option.write_en && now_state == LOOKUP && some_way_hit) begin
             dcache_if.resp_valid = 1'b1;
-        end else if (!dcache_if.write_en && axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
+        end else if (!save_option.write_en && axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
             dcache_if.resp_valid = 1'b1;
         end
     end
@@ -281,7 +281,7 @@ module dcache (
 
     // axi_read_if.araddr
     // Must read hole line at once, align to 2**DCACHE_OFFSET_WIDTH bytes
-    assign axi_read_if.araddr = (now_state == REFILL_AXI_AR) ? {dcache_if.req_addr[ADDR_WIDTH-1:DCACHE_OFFSET_WIDTH], {(DCACHE_OFFSET_WIDTH){1'b0}}} : '0;
+    assign axi_read_if.araddr = (now_state == REFILL_AXI_AR) ? {save_option.req_addr[ADDR_WIDTH-1:DCACHE_OFFSET_WIDTH], {(DCACHE_OFFSET_WIDTH){1'b0}}} : '0;
 
     // axi_read_if.arlen
     // Read once is 32bit/4B, so must read 2**DCACHE_OFFSET_WIDTH / 4 times
@@ -376,7 +376,7 @@ module dcache (
         end else if (axi_read_if.rlast) begin
             cache_mem[replace_way][addr_index].dirty <= 1'b0;
 
-        end else if (dcache_if.write_en && some_way_hit) begin
+        end else if (save_option.write_en && some_way_hit) begin
             cache_mem[hit_way_index][addr_index].dirty <= 1'b1;
         end
     end
@@ -388,20 +388,20 @@ module dcache (
             cache_mem[replace_way][addr_index].bytes[rx_counter * 4 + 1] <= axi_read_if.rdata[15:8];
             cache_mem[replace_way][addr_index].bytes[rx_counter * 4 + 2] <= axi_read_if.rdata[23:16];
             cache_mem[replace_way][addr_index].bytes[rx_counter * 4 + 3] <= axi_read_if.rdata[31:24];
-        end else if (dcache_if.write_en && some_way_hit) begin
-            case (dcache_if.size)
+        end else if (save_option.write_en && some_way_hit) begin
+            case (save_option.size)
                 MEM_SIZE_B: begin
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset] <= dcache_if.write_data[7:0];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset] <= save_option.write_data[7:0];
                 end
                 MEM_SIZE_H: begin
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 0] <= dcache_if.write_data[7:0];
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 1] <= dcache_if.write_data[15:8];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 0] <= save_option.write_data[7:0];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_hword + 1] <= save_option.write_data[15:8];
                 end
                 MEM_SIZE_W: begin
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 0] <= dcache_if.write_data[7:0];
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 1] <= dcache_if.write_data[15:8];
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 2] <= dcache_if.write_data[23:16];
-                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 3] <= dcache_if.write_data[31:24];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 0] <= save_option.write_data[7:0];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 1] <= save_option.write_data[15:8];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 2] <= save_option.write_data[23:16];
+                    cache_mem[hit_way_index][addr_index].bytes[addr_line_offset_align_to_word + 3] <= save_option.write_data[31:24];
                 end
             endcase
         end

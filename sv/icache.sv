@@ -150,7 +150,7 @@ module icache (
         end else if (now_state == LOOKUP && hit_valid) begin
             // Just 2 ways
             icache_if.resp_data <= cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
-                addr_line_offset * DATA_WIDTH +: DATA_WIDTH];
+                addr_line_offset * 8 +: DATA_WIDTH];
         end else if (now_state == AXI_R && rx_counter == addr_line_offset) begin
             icache_if.resp_data <= axi_if.rdata;
         end

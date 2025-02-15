@@ -37,7 +37,7 @@ import _riscv_defines::*;
     // now_state_d1
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            sm_if.now_state_d1 <= FETCH;
+            sm_if.now_state_d1 <= WRITEBACK;
         end else begin
             sm_if.now_state_d1 <= sm_if.now_state;
         end

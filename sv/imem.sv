@@ -31,10 +31,10 @@ module imem (
 
     initial begin
         logic [31:0] _tmp_mem [IMEM_SIZE/4];
-        // $readmemh("./sv/test/alu_test.bin", _tmp_mem);
-        for (int i = 0; i < IMEM_SIZE/4; i++) begin
-            _tmp_mem[i] = i;
-        end
+        $readmemh("./sv/test/mem_test.bin", _tmp_mem);
+        // for (int i = 0; i < IMEM_SIZE/4; i++) begin
+        //     _tmp_mem[i] = i;
+        // end
         for (int i = 0; i < IMEM_SIZE/4; i++) begin
             imem[i*4+0] = _tmp_mem[i][7:0];
             imem[i*4+1] = _tmp_mem[i][15:8]; 

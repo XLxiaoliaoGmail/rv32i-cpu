@@ -15,11 +15,11 @@ import _riscv_defines::*;
     icache_if   icache_if();
     dcache_if   dcache_if();
     reg_file_if reg_file_if();
-    axi_read_if #(
-        
-    ) imem_axi_if();
+    axi_read_if imem_axi_read_if();
+    axi_read_if dmem_axi_read_if();
+    axi_write_if dmem_axi_write_if();
 
-    assign instruction = icache_if.instruction; 
+    assign instruction = icache_if.resp_data; 
 
     control_unit control_unit_inst (
         .clk          (clk),
@@ -54,26 +54,29 @@ import _riscv_defines::*;
         .clk          (clk),
         .rst_n        (rst_n),
         .icache_if    (icache_if.self),
-        .axi_if       (imem_axi_if.master)
+        .axi_if       (imem_axi_read_if.master)
     );
 
     imem imem_inst (
         .clk          (clk),
         .rst_n        (rst_n),
-        .axi_if       (imem_axi_if.slave)
+        .axi_if       (imem_axi_read_if.slave)
     );
 
     dcache dcache_inst (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .dcache_if    (dcache_if.self)
+        .clk(clk),
+        .rst_n(rst_n),
+        .dcache_if(dcache_if.self),
+        .axi_read_if(dmem_axi_read_if.master),
+        .axi_write_if(dmem_axi_write_if.master)
     );
 
-    // dmem dmem_inst (
-    //     .clk          (clk),
-    //     .rst_n        (rst_n),
-    //     .dmem_if      (dmem_if.self)
-    // );
+    dmem dmem_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .axi_read_if(dmem_axi_read_if.slave),
+        .axi_write_if(dmem_axi_write_if.slave)
+    );
 
     reg_file reg_file_inst (
         .clk          (clk),

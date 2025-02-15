@@ -22,9 +22,9 @@ module dmem (
 
     parameter DMEM_SIZE = 1 << 16;
 
-    logic [7:0] dmem [DMEM_SIZE];
+    logic [7:0] dmem [DMEM_SIZE-1:0];
     
-    logic [ADDR_WIDTH*8-1:0] buffer;
+    logic [DATA_WIDTH*8-1:0] buffer;
     
     axi_state_t now_state, next_state;
     
@@ -70,11 +70,8 @@ module dmem (
         if (!rst_n) begin
             buffer <= '0;
         end else if (_mem_op_finish && now_state == READ_MEM) begin
-            for (int i = 0; i < axi_read_if.arlen + 1; i++) begin
-                for (int j = 0; j < 4; j++) begin
-                    automatic int offset = i*4 + j;
-                    buffer[offset*8 +: 8] <= dmem[{read_addr_reg[ADDR_WIDTH-1:2], 2'b00} + offset];
-                end
+            for (int i = 0; i < 32; i++) begin
+                buffer[i*8 +: 8] <= dmem[{read_addr_reg[ADDR_WIDTH-1:2], 2'b00} + i];
             end
         end else if (axi_write_if.wvalid && axi_write_if.wready) begin
             // Assume wstrb is 4'b1111

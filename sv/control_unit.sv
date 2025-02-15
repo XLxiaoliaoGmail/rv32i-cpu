@@ -136,7 +136,12 @@ import _riscv_defines::*;
                 sm_if.state_finish = alu_if.resp_valid;
             end
             MEMORY: begin
-                sm_if.state_finish = dcache_if.resp_valid;
+                // 若是写入内存，则无需等待
+                if (idecoder_if.opcode == OP_STORE) begin
+                    sm_if.state_finish = '1;
+                end else begin
+                    sm_if.state_finish = dcache_if.resp_valid;
+                end
             end
             WRITEBACK: begin
                 // 假设寄存器写入是瞬间完成的
@@ -147,12 +152,32 @@ import _riscv_defines::*;
 
     /************************ ICACHE *****************************/
 
-    // icache_if.req_valid
-    assign icache_if.req_valid = sm_if.now_state == FETCH;
+    logic need_to_request_icache;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            need_to_request_icache <= '0;
+        end else if (sm_if.now_state == FETCH && just_enter_new_state) begin
+            need_to_request_icache <= '1;
+        end else if (icache_if.req_valid) begin
+            need_to_request_icache <= '0;
+        end
+    end
 
-    // icache_if.pc_addr
+    // icache_if.req_valid
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            icache_if.req_valid <= '0;
+        end else if (need_to_request_icache && icache_if.resp_ready) begin
+            icache_if.req_valid <= '1;
+        end else if (sm_if.now_state == FETCH && just_enter_new_state && icache_if.resp_ready) begin
+            icache_if.req_valid <= '1;
+        end else begin
+            icache_if.req_valid <= '0;
+        end
+    end
+
     always_comb begin
-        icache_if.pc_addr = now_pc;
+        icache_if.req_addr = now_pc;
     end
 
     /************************ DECODER *****************************/
@@ -161,7 +186,7 @@ import _riscv_defines::*;
     assign idecoder_if.req_valid = (sm_if.now_state == DECODE) && !decode_state_decoder_finish;
 
     // instruction
-    assign idecoder_if.instruction = icache_if.instruction;
+    assign idecoder_if.instruction = icache_if.resp_data;
 
     /************************ REG_FILE *****************************/
 
@@ -169,19 +194,7 @@ import _riscv_defines::*;
     assign reg_file_if.rs2_addr = idecoder_if.rs2_addr;
     assign reg_file_if.rd_addr = idecoder_if.rd_addr;
     
-    // reg_file_if.write_en
     assign reg_file_if.write_en = sm_if.now_state == WRITEBACK;
-    // always_comb begin
-    //     reg_file_if.write_en = '0;
-    //     if (sm_if.now_state == WRITEBACK) begin
-    //         case (idecoder_if.opcode)
-    //             OP_R_TYPE, OP_I_TYPE, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC: 
-    //                 reg_file_if.write_en = alu_if.resp_valid;
-    //             OP_LOAD:
-    //                 reg_file_if.write_en = dcache_if.resp_valid;
-    //         endcase
-    //     end
-    // end
 
     // reg_file_if.rd_data
     always_comb begin
@@ -336,25 +349,27 @@ import _riscv_defines::*;
 
     /************************ DCACHE *****************************/
 
-    // dcache_if.req_valid
+    logic dcache_if_req_valid_d1;
+
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            dcache_if.req_valid <= '0;
-        end else if (sm_if.now_state == MEMORY && just_enter_new_state) begin
-            dcache_if.req_valid <= '1;
-        end else if (dcache_if.resp_valid)begin
-            dcache_if.req_valid <= '0;
+            dcache_if_req_valid_d1 <= '0;
+        end else begin
+            dcache_if_req_valid_d1 <= dcache_if.req_valid;
         end
     end
+
+    // dcache_if.req_valid
+    assign dcache_if.req_valid = sm_if.now_state == MEMORY && dcache_if.resp_ready && !dcache_if_req_valid_d1;
 
     // dcache_if.write_en
     assign dcache_if.write_en = sm_if.now_state == MEMORY && idecoder_if.opcode == OP_STORE;
 
-    // dcache_if.addr
+    // dcache_if.req_addr
     always_comb begin
-        dcache_if.addr = '0;
+        dcache_if.req_addr = '0;
         if (sm_if.now_state == MEMORY) begin
-            dcache_if.addr = alu_if.result;
+            dcache_if.req_addr = alu_if.result;
         end 
     end
 
