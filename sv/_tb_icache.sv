@@ -35,8 +35,8 @@ module _tb_icache;
     // 测试任务
     task reset_system;
         rst_n = 0;
-        icache_if.pc_valid = 0;
-        icache_if.pc_addr = '0;
+        icache_if.req_valid = 0;
+        icache_if.req_addr = '0;
         repeat(5) @(posedge clk);
         rst_n = 1;
     endtask
@@ -44,11 +44,11 @@ module _tb_icache;
     // 请求指令任务
     task request_instruction(input logic [31:0] addr);
         @(posedge clk);
-        icache_if.pc_valid = 1;
-        icache_if.pc_addr = addr;
-        wait(icache_if.instr_valid);
+        icache_if.req_valid = 1;
+        icache_if.req_addr = addr;
+        wait(icache_if.resp_valid);
         @(posedge clk);
-        icache_if.pc_valid = 0;
+        icache_if.req_valid = 0;
         repeat(10) @(posedge clk);
     endtask
 

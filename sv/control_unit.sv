@@ -187,7 +187,7 @@ import _riscv_defines::*;
     always_comb begin
         reg_file_if.rd_data = alu_if.result;
         case (idecoder_if.opcode)
-            OP_LOAD:         reg_file_if.rd_data = dcache_if.read_data;
+            OP_LOAD:         reg_file_if.rd_data = dcache_if.resp_data;
             OP_JAL, OP_JALR: reg_file_if.rd_data = pc_plus4;
         endcase
     end

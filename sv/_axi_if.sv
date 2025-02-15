@@ -1,20 +1,18 @@
 `include "_riscv_defines.sv"
 
 // axi_read_if 接口
-interface axi_read_if #(
-    parameter _ARLEN_WIDTH
-);
+interface axi_read_if;
 import _riscv_defines::*;
     // AXI读地址通道
-    logic [AXI_ADDR_WIDTH-1:0] araddr;
-    logic [_ARLEN_WIDTH-1:0]   arlen;
+    logic [ADDR_WIDTH-1:0] araddr;
+    logic [AXI_ARLEN_WIDTH-1:0]                arlen;
     axi_size_t                 arsize;
     axi_burst_type_t           arburst;
     logic                      arvalid;
     logic                      arready;
 
     // AXI读数据通道
-    logic [AXI_DATA_WIDTH-1:0] rdata;
+    logic [DATA_WIDTH-1:0] rdata;
     logic                      rlast;
     axi_resp_t                 rresp;
     logic                      rvalid;
@@ -38,21 +36,19 @@ import _riscv_defines::*;
 endinterface
 
 // axi_write_if 接口
-interface axi_write_if #(
-    parameter _AWLEN_WIDTH
-);
+interface axi_write_if;
 import _riscv_defines::*;
     // AXI写地址通道
-    logic [AXI_ADDR_WIDTH-1:0] awaddr;
-    logic [_AWLEN_WIDTH-1:0]   awlen;
-    axi_size_t                 awsize;
+    logic [ADDR_WIDTH-1:0] awaddr;
+    logic [AXI_ARLEN_WIDTH-1:0]                 awlen;
+    axi_size_t                  awsize;
     axi_burst_type_t           awburst;
     logic                      awvalid;
     logic                      awready;
 
     // AXI写数据通道
-    logic [AXI_DATA_WIDTH-1:0] wdata;
-    logic [AXI_DATA_WIDTH/8-1:0] wstrb;
+    logic [DATA_WIDTH-1:0] wdata;
+    logic [DATA_WIDTH/8-1:0] wstrb;
     logic                      wlast;
     logic                      wvalid;
     logic                      wready;

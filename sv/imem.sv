@@ -8,103 +8,161 @@ module imem (
 
     axi_read_if.slave   axi_if
 );
-    axi_read_slave_if axi_read_slave_if();
-    
-    imem_core imem_core_inst (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .axi_read_slave_if  (axi_read_slave_if.self)
-    );
-    
-    axi_read_slave axi_read_slave_inst (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .axi_if   (axi_if),
-        .axi_read_slave_if  (axi_read_slave_if.master)
-    );
-endmodule
-
-// imem核心模块
-module imem_core (
-    input  logic        clk,
-    input  logic        rst_n,
-
-    axi_read_slave_if.self axi_read_slave_if
-);
     import _riscv_defines::*;
 
-    parameter IMEM_SIZE = 1 << 13;
+    typedef enum logic [2:0] {
+        IDLE,
+        AR_CHANNEL,
+        READ_MEM,
+        R_CHANNEL
+    } axi_state_t;
 
-    // 指令存储器
-    logic [31:0] imem_words [IMEM_SIZE];
-    
-    // 延迟计数器(10周期)
-    logic [3:0] delay_counter;
-    
-    // 保存请求信息
-    logic [AXI_ADDR_WIDTH-1:0] curr_addr;
+    parameter IMEM_SIZE = 1 << 16;
 
-    // 初始化指令存储器
+    logic [7:0] imem [IMEM_SIZE];
+    
+    logic [ADDR_WIDTH*8-1:0] buffer;
+    
+    axi_state_t now_state, next_state;
+    
+    logic [4:0] tx_counter;
+    
+    logic [ADDR_WIDTH-1:0] addr_reg;
+
     initial begin
-        read_imem();
+        logic [31:0] _tmp_mem [IMEM_SIZE/4];
+        // $readmemh("./sv/test/alu_test.bin", _tmp_mem);
+        for (int i = 0; i < IMEM_SIZE/4; i++) begin
+            _tmp_mem[i] = i;
+        end
+        for (int i = 0; i < IMEM_SIZE/4; i++) begin
+            imem[i*4+0] = _tmp_mem[i][7:0];
+            imem[i*4+1] = _tmp_mem[i][15:8]; 
+            imem[i*4+2] = _tmp_mem[i][23:16];
+            imem[i*4+3] = _tmp_mem[i][31:24];
+        end
     end
+    
+    /************************ SIMULATE DELAY *****************************/
 
-    task read_imem();
-        $readmemh("./sv/test/mem_test.bin", imem_words);
-    endtask
+    logic [3:0] _buffer_counter;
+    logic _buffer_counter_en;
+    logic _reading_finish;
 
-    // delay_counter
+    assign _reading_finish = _buffer_counter_en && _buffer_counter == 0;
+
+    // _buffer_counter_en
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            delay_counter <= '0;
-        end else if (axi_read_slave_if.req_valid && !axi_read_slave_if.processing) begin
-            delay_counter <= 4'd10;  // 模拟读取延迟
-        end else if (delay_counter > 0) begin
-            delay_counter <= delay_counter - 1;
+            _buffer_counter_en <= 1'b0;
+        end else if (axi_if.arvalid && axi_if.arready) begin
+            _buffer_counter_en <= 1'b1;
+        end else if (_reading_finish) begin
+            _buffer_counter_en <= 1'b0;
         end
     end
 
-    // axi_read_slave_if.processing
+    // _buffer_counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_read_slave_if.processing <= 1'b0;
-        end else if (axi_read_slave_if.req_valid && !axi_read_slave_if.processing) begin
-            axi_read_slave_if.processing <= 1'b1;
-        end else if (delay_counter == 0 && axi_read_slave_if.processing) begin
-            axi_read_slave_if.processing <= 1'b0;
+            _buffer_counter <= '0;
+        end else if (axi_if.arvalid && axi_if.arready) begin
+            _buffer_counter <= 10;
+        end else if (_buffer_counter != 0) begin
+            _buffer_counter <= _buffer_counter - 1;
         end
     end
 
-    // 保存请求地址逻辑
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            curr_addr <= '0;
-        end else if (axi_read_slave_if.req_valid && !axi_read_slave_if.processing) begin
-            curr_addr <= axi_read_slave_if.req_addr;
-        end
-    end
+    /************************ STATE MACHINE *****************************/
 
-    // 响应有效信号逻辑
+    // now_state
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_read_slave_if.resp_valid <= 1'b0;
-        end else if (delay_counter == 1) begin
-            axi_read_slave_if.resp_valid <= 1'b1;
+            now_state <= IDLE;
         end else begin
-            axi_read_slave_if.resp_valid <= 1'b0;
+            now_state <= next_state;
         end
     end
 
-    // 响应数据逻辑
+    // next_state
+    always_comb begin
+        next_state = now_state;
+        case (now_state)
+            IDLE: begin
+                if (axi_if.arvalid) begin
+                    next_state = AR_CHANNEL;
+                end
+            end
+            AR_CHANNEL: begin
+                next_state = READ_MEM;
+            end
+            READ_MEM: begin
+                if (_reading_finish) begin
+                    next_state = R_CHANNEL;
+                end
+            end
+            R_CHANNEL: begin
+                if (axi_if.rvalid && axi_if.rready && axi_if.rlast) begin
+                    next_state = IDLE;
+                end
+            end
+        endcase
+    end
+
+    /************************ AXI IF *****************************/
+
+    // addr_reg
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_read_slave_if.resp_data <= '0;
-        end else if (delay_counter == 1) begin
-            for (int i = 0; i < 8; i++) begin
-                axi_read_slave_if.resp_data[i*32 +: 32] <= imem_words[curr_addr[AXI_ADDR_WIDTH-1:2] + i];
+            addr_reg <= '0;
+        end else if (now_state == IDLE && axi_if.arvalid) begin
+            addr_reg <= axi_if.araddr;
+        end
+    end
+
+    // buffer
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            buffer <= '0;
+        end else if (_reading_finish) begin
+            // Simulate the delay of reading memory
+            for (int i = 0; i < axi_if.arlen + 1; i++) begin
+                for (int j = 0; j < 4; j++) begin
+                    automatic int offset = i*4 + j;
+                    buffer[offset*8 +: 8] <= imem[{addr_reg[ADDR_WIDTH-1:2], 2'b00} + offset];
+                end
             end
         end
     end
+
+    // rvalid
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            axi_if.rvalid <= 1'b0;
+        end else if (_reading_finish) begin
+            axi_if.rvalid <= 1'b1;
+        end else if (axi_if.rlast) begin
+            axi_if.rvalid <= 1'b0;
+        end
+    end
+
+    // tx_counter
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            tx_counter <= '0;
+        end else if (axi_if.rlast) begin
+            // attention the priority of code
+            tx_counter <= 0;
+        end else if (axi_if.rvalid && axi_if.rready && !axi_if.rlast) begin
+            tx_counter <= tx_counter + 1;
+        end
+    end
+
+    assign axi_if.arready = (now_state == IDLE);
+
+    assign axi_if.rdata = buffer[tx_counter*32 +: 32];
+
+    assign axi_if.rlast = axi_if.rvalid && axi_if.rready && tx_counter == axi_if.arlen;
+
+    assign axi_if.rresp = AXI_RESP_OKAY;
 endmodule
-
-

@@ -6,7 +6,7 @@ interface axi_read_master_if #(
     import _riscv_defines::*;
     // 请求信号
     logic                      req_valid;
-    logic [AXI_ADDR_WIDTH-1:0] req_addr;
+    logic [ADDR_WIDTH-1:0] req_addr;
 
     // 响应信号
     logic                   resp_valid;
@@ -47,7 +47,7 @@ module axi_read_master #(
     
     axi_state_t now_state, next_state;
 
-    logic [AXI_ADDR_WIDTH-1:0] req_addr_reg;
+    logic [ADDR_WIDTH-1:0] req_addr_reg;
 
     logic [$clog2(_AR_LEN+1)-1:0] data_counter;
 
@@ -109,7 +109,7 @@ module axi_read_master #(
         if (!rst_n) begin
             buffer <= '0;
         end else if (now_state == R_CHANNEL && axi_if.rvalid && axi_if.rready) begin
-            buffer[(data_counter << AXI_ADDR_WIDTH_LOG2) +: AXI_ADDR_WIDTH] <= axi_if.rdata;
+            buffer[(data_counter << ADDR_WIDTH_LOG2) +: ADDR_WIDTH] <= axi_if.rdata;
         end
     end
 
@@ -143,7 +143,7 @@ interface axi_read_slave_if #(
     import _riscv_defines::*;
     // 请求信号
     logic                      req_valid;
-    logic [AXI_ADDR_WIDTH-1:0] req_addr;
+    logic [ADDR_WIDTH-1:0] req_addr;
     logic                      processing;
 
     // 响应信号
@@ -189,7 +189,7 @@ module axi_read_slave #(
 
     logic [_RESP_DATA_WIDTH-1:0] buffer;
     
-    logic [AXI_ADDR_WIDTH-1:0] addr_reg;
+    logic [ADDR_WIDTH-1:0] addr_reg;
 
     // curr_state
     always_ff @(posedge clk or negedge rst_n) begin
@@ -274,7 +274,7 @@ module axi_read_slave #(
 
     // AXI读数据通道信号
     assign axi_if.rvalid = (curr_state == R_CHANNEL);
-    assign axi_if.rdata = buffer[(send_counter << AXI_ADDR_WIDTH_LOG2) +: AXI_ADDR_WIDTH];
+    assign axi_if.rdata = buffer[(send_counter << ADDR_WIDTH_LOG2) +: ADDR_WIDTH];
     assign axi_if.rlast = (curr_state == R_CHANNEL && send_counter == axi_if.arlen);
     assign axi_if.rresp = AXI_RESP_OKAY;
 
