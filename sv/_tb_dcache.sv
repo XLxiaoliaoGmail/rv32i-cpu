@@ -54,16 +54,17 @@ module _tb_dcache;
         input mem_read_size_t size,
         input logic sign
     );
-        @(posedge clk);
         dcache_if.req_valid = 1;
         dcache_if.write_en = 0;
         dcache_if.req_addr = addr;
         dcache_if.size = size;
         dcache_if.sign = sign;
-        repeat(2) @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
         wait(dcache_if.resp_ready);
+        @(posedge clk);
         dcache_if.req_valid = 0;
-        repeat(2) @(posedge clk);
+        repeat(10) @(posedge clk);
     endtask
 
     // Memory write task
@@ -72,17 +73,18 @@ module _tb_dcache;
         input logic [31:0] data,
         input mem_read_size_t size
     );
-        @(posedge clk);
         dcache_if.req_valid = 1;
         dcache_if.write_en = 1;
         dcache_if.req_addr = addr;
         dcache_if.write_data = data;
         dcache_if.size = size;
-        repeat(2) @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
         wait(dcache_if.resp_ready);
+        @(posedge clk);
         dcache_if.req_valid = 0;
         dcache_if.write_en = 0;
-        repeat(2) @(posedge clk);
+        repeat(10) @(posedge clk);
     endtask
 
     // Main test process

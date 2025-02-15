@@ -56,7 +56,18 @@ module dcache (
         logic [2**DCACHE_OFFSET_WIDTH-1:0][7:0] bytes;// 数据域(32字节=256位)
     } cache_line_t;
 
-    cache_line_t [DCACHE_WAY_NUM-1:0][DCACHE_SET_NUM-1:0] cache_mem; // 缓存存储器
+    cache_line_t [DCACHE_WAY_NUM-1:0][DCACHE_SET_NUM-1:0] cache_mem;
+
+    // Save option
+    typedef struct packed {
+        logic                    write_en;
+        logic [ADDR_WIDTH-1:0]   req_addr;
+        logic [DATA_WIDTH-1:0]   write_data;
+        mem_read_size_t          size;
+        logic                    sign;
+    } save_option_t;
+
+    save_option_t save_option;
 
     logic [3:0] rx_counter;
     logic [3:0] tx_counter;
@@ -74,7 +85,6 @@ module dcache (
     logic [DCACHE_OFFSET_WIDTH-1:0]   addr_line_offset_align_to_word;
     logic [DCACHE_OFFSET_WIDTH-1:0]   addr_line_offset_align_to_hword;
 
-
     assign addr_tag = dcache_if.req_addr[DATA_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH];
     assign addr_index = dcache_if.req_addr[DATA_WIDTH-DCACHE_TAG_WIDTH-1 : DATA_WIDTH-DCACHE_TAG_WIDTH-DCACHE_INDEX_WIDTH];
 
@@ -82,6 +92,19 @@ module dcache (
     assign addr_line_offset_align_to_word = {dcache_if.req_addr[DCACHE_OFFSET_WIDTH-1 : 2], 2'b00};
     assign addr_line_offset_align_to_hword = {dcache_if.req_addr[DCACHE_OFFSET_WIDTH-1 : 1], 1'b0};
 
+    /************************ SAVE OPTION *****************************/
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            save_option <= '0;
+        end else if (dcache_if.req_valid) begin
+            save_option.write_en <= dcache_if.write_en;
+            save_option.req_addr <= dcache_if.req_addr;
+            save_option.write_data <= dcache_if.write_data;
+            save_option.size <= dcache_if.size;
+            save_option.sign <= dcache_if.sign;
+        end
+    end
     /************************ STATE MACHINE *****************************/
 
     // state_t
@@ -191,10 +214,9 @@ module dcache (
     logic [DATA_WIDTH-1:0] read_buf;
 
     // read_buf
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            read_buf <= '0;
-        end else if (now_state == LOOKUP && some_way_hit) begin
+    always_comb begin
+        read_buf <= '0;
+        if (now_state == LOOKUP && some_way_hit) begin
             case (dcache_if.size)
                 MEM_SIZE_W: begin
                     read_buf <= {
@@ -237,15 +259,14 @@ module dcache (
     end
 
     /************************ DCACHE IF *****************************/
-
     assign dcache_if.resp_ready = now_state == IDLE;
 
     // dcache_if.resp_valid
     always_comb begin
         dcache_if.resp_valid = 1'b0;
-        if (now_state == LOOKUP && some_way_hit) begin
+        if (!dcache_if.write_en && now_state == LOOKUP && some_way_hit) begin
             dcache_if.resp_valid = 1'b1;
-        end else if (axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
+        end else if (!dcache_if.write_en && axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
             dcache_if.resp_valid = 1'b1;
         end
     end
