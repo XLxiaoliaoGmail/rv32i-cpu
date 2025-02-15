@@ -161,7 +161,7 @@ module icache (
         icache_if.resp_valid = 1'b0;
         if (now_state == LOOKUP && hit_valid) begin
             icache_if.resp_valid = 1'b1;
-        end else if (now_state == AXI_R && rx_counter == addr_line_offset) begin
+        end else if (now_state == AXI_R && rx_counter == addr_line_offset && axi_if.rvalid && axi_if.rready) begin
             icache_if.resp_valid = 1'b1;
         end
     end

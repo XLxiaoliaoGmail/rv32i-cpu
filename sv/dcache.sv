@@ -216,7 +216,7 @@ module dcache (
     // read_buf
     always_comb begin
         read_buf <= '0;
-        if (now_state == LOOKUP && some_way_hit) begin
+        if (some_way_hit) begin
             case (save_option.size)
                 MEM_SIZE_W: begin
                     read_buf <= {
