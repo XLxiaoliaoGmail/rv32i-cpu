@@ -9,13 +9,15 @@ import _riscv_defines::*;
     output logic [DATA_WIDTH-1:0] instruction
 );
 
-    alu_if        alu_if();
-    sm_if         sm_if();
-    idecoder_if   idecoder_if();
-    icache_if     icache_if();
-    dcache_if     dcache_if();
-    reg_file_if   reg_file_if();
-    axi_read_if   imem_axi_if();
+    alu_if      alu_if();
+    sm_if       sm_if();
+    idecoder_if idecoder_if();
+    icache_if   icache_if();
+    dcache_if   dcache_if();
+    reg_file_if reg_file_if();
+    axi_read_if #(
+        
+    ) imem_axi_if();
 
     assign instruction = icache_if.instruction; 
 

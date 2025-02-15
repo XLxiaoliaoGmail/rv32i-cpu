@@ -16,7 +16,7 @@ package _riscv_defines;
     // 基本参数
     parameter ICACHE_WAY_NUM         = 2;              // 2路组相联
     parameter ICACHE_SET_NUM         = 2**ICACHE_INDEX_WIDTH; // 64组
-    parameter ICACHE_LINE_BIT_LEN    = 1 << (2 + ICACHE_BYTE_OFFSET + ICACHE_LINE_OFFSET); // 一个line的位宽
+    parameter ICACHE_LINE_SIZE       = 2**(ICACHE_BYTE_OFFSET + ICACHE_LINE_OFFSET); // 按照 Byte 计算的大小
 
     /*********************** DCACHE 相关参数 ***********************/
 

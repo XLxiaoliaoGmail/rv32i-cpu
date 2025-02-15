@@ -42,7 +42,10 @@ module dcache (
     axi_read_if.master  axi_read_if,
     axi_write_if.master axi_write_if
 );
-    axi_read_master_if axi_read_master_if();
+    import _riscv_defines::*;
+    axi_read_master_if #(
+        ._RESP_DATA_WIDTH(DCACHE_LINE_SIZE*8)
+    ) axi_read_master_if();
     
     dcache_core dcache_core_inst (
         .clk(clk),
@@ -51,19 +54,24 @@ module dcache (
         .axi_read_master_if(axi_read_master_if.master)
     );
     
-    axi_read_master axi_read_master_inst (
+    axi_read_master #(
+        ._RESP_DATA_WIDTH(DCACHE_LINE_SIZE*8),
+        ._AR_LEN(8'h7),
+        ._AR_SIZE(AXI_SIZE_4B),
+        ._AR_BURST(AXI_BURST_INCR)
+    ) axi_read_master_inst (
         .clk(clk),
         .rst_n(rst_n),
         .axi_if(axi_read_if),
         .axi_read_master_if(axi_read_master_if.self)
     );
 
-    axi_write_master axi_write_master_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .axi_if(axi_write_if),
-        .axi_read_master_if(axi_read_master_if.self)
-    );
+    // axi_write_master axi_write_master_inst (
+    //     .clk(clk),
+    //     .rst_n(rst_n),
+    //     .axi_if(axi_write_if),
+    //     .axi_read_master_if(axi_read_master_if.self)
+    // );
 endmodule
 
 module dcache_core (

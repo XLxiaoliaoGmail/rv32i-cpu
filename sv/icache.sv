@@ -35,8 +35,10 @@ module icache (
     // AXI接口
     axi_read_if.master  axi_if
 );
-
-    axi_read_master_if axi_read_master_if();
+    import _riscv_defines::*;
+    axi_read_master_if #(
+        ._RESP_DATA_WIDTH(ICACHE_LINE_SIZE*8)
+    ) axi_read_master_if();
     
     icache_core icache_core_inst (
         .clk      (clk),
@@ -45,7 +47,12 @@ module icache (
         .axi_read_master_if(axi_read_master_if.master)
     );
     
-    axi_read_master axi_read_master_inst (
+    axi_read_master #(
+        ._RESP_DATA_WIDTH(ICACHE_LINE_SIZE*8),
+        ._AR_LEN(8'h7),
+        ._AR_SIZE(AXI_SIZE_4B),
+        ._AR_BURST(AXI_BURST_INCR)
+    ) axi_read_master_inst (
         .clk      (clk),
         .rst_n    (rst_n),
         .axi_if      (axi_if),
@@ -68,7 +75,7 @@ module icache_core (
     typedef struct packed {
         logic valid; // 有效位
         logic [ICACHE_TAG_WIDTH-1:0] tag;   // tag域
-        logic [ICACHE_LINE_BIT_LEN*8-1:0] data;// 数据域(32字节=256位)
+        logic [ICACHE_LINE_SIZE*8-1:0] data;// 数据域(32字节=256位)
     } cache_line_t;
 
     // 缓存存储
