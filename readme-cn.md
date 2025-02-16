@@ -36,7 +36,7 @@
   - 指令缓存仅有写功能
   - 数据缓存可读写
   - 数据缓存模块运行描述如下
-  - ![image](https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901)
+  - <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
 
 
 ## 模块说明
