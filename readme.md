@@ -39,6 +39,7 @@ Simulation verification was performed using Modelsim.
 
 - **Cache Characteristics**
   - Implements instruction and data caching mechanisms
+  - Communicate with memory using the AXI protocol
   - Instruction cache is read-only
   - Data cache supports both read and write operations
   - The operation of the data cache module is described as follows
