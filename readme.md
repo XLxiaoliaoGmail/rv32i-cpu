@@ -42,7 +42,44 @@ Simulation verification was performed using Modelsim.
   - Instruction cache is write-only
   - Data cache supports both read and write operations
   - The operation of the data cache module is described as follows
-  - <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
+  <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
+
+### Module Testing
+
+#### Instruction Cache Test (_tb_icache.sv)
+- Verify cache miss and cache hit mechanisms
+- Test data filling for different cache ways
+- Validate LRU (Least Recently Used) replacement policy
+- Simulate instruction memory access delay
+
+#### Data Cache Test (_tb_dcache.sv)
+- Test read and write operations with different data widths (word/halfword/byte)
+- Verify sign extension and zero extension functions
+- Test cache replacement strategies
+- Validate unaligned access handling
+- Test cache coherence
+
+### Overall Functional Testing
+
+Load different test programs through the `imem.sv` module to verify CPU support for various instructions:
+
+#### ALU Instruction Test (alu_test.bin)
+- Basic arithmetic operations: addition, subtraction
+- Logical operations: AND, OR, XOR
+- Shift operations: logical left shift, logical right shift, arithmetic right shift
+- Comparison operations: signed and unsigned comparisons
+
+#### Branch and Jump Test (branch_jump_test.bin)
+- Conditional branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU)
+- Unconditional jump (JAL)
+- Indirect jump (JALR)
+- Branch prediction verification
+
+#### Memory Access Test (mem_test.bin)
+- Load instructions for word/halfword/byte (LW, LH, LB, LHU, LBU)
+- Store instructions for word/halfword/byte (SW, SH, SB)
+- Address alignment check
+- Data extension handling
 
 ## Module Description
 
