@@ -39,7 +39,7 @@ Simulation verification was performed using Modelsim.
 
 - **Cache Characteristics**
   - Implements instruction and data caching mechanisms
-  - Instruction cache is write-only
+  - Instruction cache is read-only
   - Data cache supports both read and write operations
   - The operation of the data cache module is described as follows
   <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
