@@ -143,7 +143,7 @@ module dcache (
         next_state = now_state;
         case (now_state)
             IDLE: begin
-                if (dcache_if.req_valid) begin
+                if (dcache_if.req_valid && dcache_if.resp_ready) begin
                     next_state = LOOKUP;
                 end
             end
