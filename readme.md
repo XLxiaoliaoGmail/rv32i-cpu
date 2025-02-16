@@ -25,16 +25,19 @@ Simulation verification was performed using Modelsim.
   - Centralized control with direct communication between modules and control unit
   - Request-response communication pattern ensuring reliable data transfer
 
-- **Resource Optimization**
+- **ALU Multiplexing**
   - Single ALU with multiple functions supporting:
     - Basic arithmetic operations
     - Conditional branch evaluation
     - Jump address calculation
     - Memory address offset computation
 
-- **Performance Optimization**
-  - Implementation of instruction and data caching mechanisms
-  - Simulation of certain real hardware delay characteristics
+- **Cache Characteristics**
+  - Implements instruction and data caching mechanisms
+  - Instruction cache is write-only
+  - Data cache supports both read and write operations
+  - The operation of the data cache module is described as follows
+  - <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
 
 ## Module Description
 
