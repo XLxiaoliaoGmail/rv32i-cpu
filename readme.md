@@ -1,5 +1,10 @@
 # RISC-V RV32I Multi-cycle CPU Design
 
+## Language
+查看中文版，点击 [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
+
+For chinese version, click [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
+
 ## Project Overview
 This is a 32-bit multi-cycle CPU design project based on the RISC-V-32I instruction set. Implemented in SystemVerilog hardware description language, it supports the basic instruction system, including arithmetic operations, branch jumps, and memory access operations. The design features instruction and memory caching, with ALU performing different functions at different stages, and all modules communicating through request-response mechanisms.
 
