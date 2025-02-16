@@ -5,7 +5,8 @@ This is a 32-bit multi-cycle CPU design project based on the RISC-V-32I instruct
 
 Simulation verification was performed using Modelsim.
 
-![image](https://github.com/user-attachments/assets/52b76d8e-1400-4e2a-85b7-5071cf069289)
+![image](https://github.com/user-attachments/assets/54cfda25-1927-4999-8334-6e444dc1b8f1)
+
 
 ## **Core Features**
 - **Multi-cycle Execution**: Instructions are executed in five precisely controlled stages
