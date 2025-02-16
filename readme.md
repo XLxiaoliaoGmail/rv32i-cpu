@@ -1,11 +1,17 @@
 # RISC-V RV32I Multi-cycle CPU Design
 
+## Language
+查看中文版，点击 [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
+
+For chinese version, click [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md).
+
 ## Project Overview
 This is a 32-bit multi-cycle CPU design project based on the RISC-V-32I instruction set. Implemented in SystemVerilog hardware description language, it supports the basic instruction system, including arithmetic operations, branch jumps, and memory access operations. The design features instruction and memory caching, with ALU performing different functions at different stages, and all modules communicating through request-response mechanisms.
 
 Simulation verification was performed using Modelsim.
 
-![image](https://github.com/user-attachments/assets/52b76d8e-1400-4e2a-85b7-5071cf069289)
+![image](https://github.com/user-attachments/assets/54cfda25-1927-4999-8334-6e444dc1b8f1)
+
 
 ## **Core Features**
 - **Multi-cycle Execution**: Instructions are executed in five precisely controlled stages
@@ -24,16 +30,19 @@ Simulation verification was performed using Modelsim.
   - Centralized control with direct communication between modules and control unit
   - Request-response communication pattern ensuring reliable data transfer
 
-- **Resource Optimization**
+- **ALU Multiplexing**
   - Single ALU with multiple functions supporting:
     - Basic arithmetic operations
     - Conditional branch evaluation
     - Jump address calculation
     - Memory address offset computation
 
-- **Performance Optimization**
-  - Implementation of instruction and data caching mechanisms
-  - Simulation of certain real hardware delay characteristics
+- **Cache Characteristics**
+  - Implements instruction and data caching mechanisms
+  - Instruction cache is write-only
+  - Data cache supports both read and write operations
+  - The operation of the data cache module is described as follows
+  - <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="60%">
 
 ## Module Description
 
