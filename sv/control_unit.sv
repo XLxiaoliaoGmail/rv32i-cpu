@@ -350,7 +350,6 @@ import _riscv_defines::*;
     /************************ DCACHE *****************************/
 
     logic dcache_if_req_valid_d1;
-
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             dcache_if_req_valid_d1 <= '0;

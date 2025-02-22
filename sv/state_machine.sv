@@ -73,14 +73,12 @@ import _riscv_defines::*;
                     OP_JALR:    sm_if.next_state = WRITEBACK;  // JALR需要写回
                     OP_LUI:     sm_if.next_state = WRITEBACK;  // LUI直接写回
                     OP_AUIPC:   sm_if.next_state = WRITEBACK;  // AUIPC直接写回
-                    default:    sm_if.next_state = FETCH;
                 endcase
             end
             MEMORY: begin
                 case (sm_if.opcode)
                     OP_LOAD:    sm_if.next_state = WRITEBACK;  // 加载指令需要写回
                     OP_STORE:   sm_if.next_state = FETCH;      // 存储指令完成后直接取指
-                    default:    sm_if.next_state = FETCH;
                 endcase
             end
             WRITEBACK: begin
