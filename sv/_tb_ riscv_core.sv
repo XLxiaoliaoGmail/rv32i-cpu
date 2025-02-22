@@ -1,5 +1,5 @@
-`include "_riscv_defines.sv"
-import _riscv_defines::*;
+`include "_pkg_riscv_defines.sv"
+import _pkg_riscv_defines::*;
 
 module _tb_riscv_core();
 

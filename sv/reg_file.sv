@@ -1,7 +1,7 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 interface reg_file_if;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
     logic [REG_ADDR_WIDTH-1:0] rs1_addr;
     logic [REG_ADDR_WIDTH-1:0] rs2_addr;
     logic [DATA_WIDTH-1:0]     rs1_data;
@@ -32,7 +32,7 @@ interface reg_file_if;
 endinterface
 
 module reg_file
-import _riscv_defines::*;
+import _pkg_riscv_defines::*;
 (
     input  logic clk,
     input  logic rst_n,

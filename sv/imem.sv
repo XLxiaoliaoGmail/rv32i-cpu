@@ -1,14 +1,12 @@
-`include "_riscv_defines.sv"
-`include "_axi_if.sv"
+`include "_pkg_riscv_defines.sv"
 
-// imem顶层模块
 module imem (
     input  logic        clk,
     input  logic        rst_n,
 
     axi_read_if.slave   axi_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     typedef enum logic [2:0] {
         IDLE,

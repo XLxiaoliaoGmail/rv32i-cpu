@@ -1,7 +1,7 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 interface dcache_if;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
     // PC -> DCache
     logic                    req_valid;
     logic                    write_en;
@@ -46,7 +46,7 @@ module dcache (
     axi_read_if.master  axi_read_if,
     axi_write_if.master axi_write_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // 缓存行结构体定义
     typedef struct packed {

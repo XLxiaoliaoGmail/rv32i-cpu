@@ -1,9 +1,9 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 interface axi_read_master_if #(
     parameter _RESP_DATA_WIDTH
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
     // 请求信号
     logic                      req_valid;
     logic [ADDR_WIDTH-1:0] req_addr;
@@ -36,7 +36,7 @@ module axi_read_master #(
 
     axi_read_master_if.self axi_read_master_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // AXI状态机
     typedef enum logic [1:0] {
@@ -140,7 +140,7 @@ endmodule
 interface axi_read_slave_if #(
     parameter _RESP_DATA_WIDTH
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
     // 请求信号
     logic                      req_valid;
     logic [ADDR_WIDTH-1:0] req_addr;
@@ -172,7 +172,7 @@ module axi_read_slave #(
     // IMEM接口
     axi_read_slave_if.master axi_read_slave_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // AXI状态机
     typedef enum logic [2:0] {

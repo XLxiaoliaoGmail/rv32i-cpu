@@ -1,5 +1,4 @@
-`include "_riscv_defines.sv"
-`include "_axi_if.sv"
+`include "_pkg_riscv_defines.sv"
 
 module dmem (
     input  logic        clk,
@@ -7,7 +6,7 @@ module dmem (
     axi_read_if.slave   axi_read_if,
     axi_write_if.slave  axi_write_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     typedef enum logic [2:0] {
         IDLE,

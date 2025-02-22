@@ -1,8 +1,8 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 // ALU接口定义
 interface alu_if;
-import _riscv_defines::*;
+import _pkg_riscv_defines::*;
     logic [DATA_WIDTH-1:0] operand1;  
     logic [DATA_WIDTH-1:0] operand2;  
     logic                  req_valid; 
@@ -34,7 +34,7 @@ endinterface
 
 // ALU模块
 module alu
-import _riscv_defines::*;
+import _pkg_riscv_defines::*;
 (
     input  logic    clk,
     input  logic    rst_n,

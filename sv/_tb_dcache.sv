@@ -1,8 +1,7 @@
-`include "_riscv_defines.sv"
-`include "_axi_if.sv"
+`include "_pkg_riscv_defines.sv"
 
 module _tb_dcache;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // Clock and reset signals
     logic clk;

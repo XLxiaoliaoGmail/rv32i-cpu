@@ -1,7 +1,7 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 interface sm_if;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     logic    state_finish;
     opcode_t opcode;
@@ -28,7 +28,7 @@ interface sm_if;
 endinterface
 
 module state_machine
-import _riscv_defines::*;
+import _pkg_riscv_defines::*;
 (
     input  logic clk,
     input  logic rst_n,

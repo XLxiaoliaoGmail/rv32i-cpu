@@ -1,8 +1,7 @@
-`include "_riscv_defines.sv"
-`include "_axi_if.sv"
+`include "_pkg_riscv_defines.sv"
 
 module _tb_icache;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // 时钟和复位信号
     logic clk;

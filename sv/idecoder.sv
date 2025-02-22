@@ -1,4 +1,4 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 // RISC-V 指令格式:
 //
@@ -27,7 +27,7 @@
 // |        imm[20|10:1|11|19:12]        |   rd    | opcode |
 
 interface idecoder_if;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     logic [31:0]               instruction;
     logic [REG_ADDR_WIDTH-1:0] rs1_addr;
@@ -68,7 +68,7 @@ interface idecoder_if;
 endinterface
 
 module idecoder
-import _riscv_defines::*;
+import _pkg_riscv_defines::*;
 (
     input  logic clk,
     input  logic rst_n,

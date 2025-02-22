@@ -1,4 +1,7 @@
-package _riscv_defines;
+package _pkg_riscv_defines;
+
+    /*********************** BASIC ***********************/
+
     // 基本参数定义
     parameter DATA_WIDTH_LOG2 = 5;
     parameter ADDR_WIDTH_LOG2 = 5;
@@ -8,7 +11,7 @@ package _riscv_defines;
     parameter IMEM_SIZE = 1 << 14;
     parameter IMEM_PATH = "./sv/test/mem_test.bin";
 
-    /*********************** ICACHE 相关参数 ***********************/
+    /*********************** ICACHE ***********************/
 
     // 地址位宽相关参数
     parameter ICACHE_LINE_OFFSET     = 5; // 一个line存储8条命令 32Bytes
@@ -19,7 +22,7 @@ package _riscv_defines;
     parameter ICACHE_SET_NUM         = 2**ICACHE_INDEX_WIDTH; // 64组
     parameter ICACHE_LINE_SIZE       = 2**ICACHE_LINE_OFFSET; // 按照 Byte 计算的大小
 
-    /*********************** DCACHE 相关参数 ***********************/
+    /*********************** DCACHE ***********************/
 
     parameter DCACHE_OFFSET_WIDTH    = 5;  // 一个cache line 32字节
     parameter DCACHE_INDEX_WIDTH     = 6;  // 组索引位宽：64组
@@ -29,7 +32,7 @@ package _riscv_defines;
     parameter DCACHE_SET_NUM         = 2**DCACHE_INDEX_WIDTH; // 64组
     parameter DCACHE_LINE_SIZE       = 2**DCACHE_OFFSET_WIDTH; // 缓存行大小：32字节
 
-    /*********************** AXI 相关参数 ***********************/
+    /*********************** AXI ***********************/
 
     parameter AXI_ARLEN_WIDTH = 8;
     parameter AXI_ID_WIDTH   = 4;
@@ -62,7 +65,7 @@ package _riscv_defines;
         AXI_SIZE_128B  = 3'b111   // 128 bytes
     } axi_size_t;
 
-    /*********************** 指令相关参数 ***********************/
+    /*********************** DECODER ***********************/
 
     // 操作码定义
     typedef enum logic [6:0] {
@@ -175,5 +178,44 @@ package _riscv_defines;
         MEM_SIZE_H = 2'b01,
         MEM_SIZE_W = 2'b10
     } mem_read_size_t;
+
+    /*********************** PIPELINE REGISTER ***********************/
+
+    typedef struct packed {
+        logic [ADDR_WIDTH-1:0]      pc;         
+        logic [DATA_WIDTH-1:0]      instruction;
+    } pip_reg_fet_dec_t;
+
+    typedef struct packed {
+        opcode_t                    opcode;
+        logic [ADDR_WIDTH-1:0]      pc;
+        logic [DATA_WIDTH-1:0]      rs1_data;
+        logic [DATA_WIDTH-1:0]      rs2_data;
+        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
+        logic [DATA_WIDTH-1:0]      imm;  
+        logic [2:0]                 funct3;
+        logic [6:0]                 funct7;
+    } pip_reg_dec_exe_t;
+
+    typedef struct packed {
+        opcode_t                    opcode;
+        logic [ADDR_WIDTH-1:0]      pc_plus4;
+        logic [DATA_WIDTH-1:0]      alu_result;
+        logic [DATA_WIDTH-1:0]      rs2_data;
+        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
+    } pip_reg_exe_mem_t;
+
+    typedef struct packed {
+        opcode_t                    opcode;
+        logic [ADDR_WIDTH-1:0]      pc_plus4;
+        logic [DATA_WIDTH-1:0]      alu_result;
+        logic [DATA_WIDTH-1:0]      mem_data;
+        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
+    } pip_reg_mem_wb_t;
+
+    typedef struct packed {
+        logic valid;
+        logic ready;
+    } phase_status_t;
 
 endpackage 

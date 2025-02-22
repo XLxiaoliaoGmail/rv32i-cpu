@@ -1,8 +1,8 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_defines.sv"
 
 // 外部接口
 interface icache_if;
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
     // PC -> ICache
     logic [ADDR_WIDTH-1:0] req_addr; 
     logic                  req_valid;
@@ -37,7 +37,7 @@ module icache (
     // AXI接口
     axi_read_if.master axi_if
 );
-    import _riscv_defines::*;
+    import _pkg_riscv_defines::*;
 
     // 缓存行结构体定义
     typedef struct packed {

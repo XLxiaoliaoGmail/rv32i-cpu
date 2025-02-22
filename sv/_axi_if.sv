@@ -1,8 +1,7 @@
-`include "_riscv_defines.sv"
+`include "_pkg_riscv_basic.sv"
 
-// axi_read_if 接口
 interface axi_read_if;
-import _riscv_defines::*;
+    import _pkg_riscv_basic::*;
     // AXI读地址通道
     logic [ADDR_WIDTH-1:0] araddr;
     logic [AXI_ARLEN_WIDTH-1:0]                arlen;
@@ -37,7 +36,7 @@ endinterface
 
 // axi_write_if 接口
 interface axi_write_if;
-import _riscv_defines::*;
+import _pkg_riscv_basic::*;
     // AXI写地址通道
     logic [ADDR_WIDTH-1:0] awaddr;
     logic [AXI_ARLEN_WIDTH-1:0]                 awlen;
