@@ -4,18 +4,18 @@ module pip_regs
 import _pkg_riscv_defines::*;
 (
 
-    input logic clk,
-    input logic rst_n,
-
-    input logic i_fet_dec_write_en,
-    input logic i_dec_exe_write_en,
-    input logic i_exe_mem_write_en,
-    input logic i_mem_wb_write_en,
-
-    input pip_reg_fet_dec_t  i_fet_dec,
-    input pip_reg_dec_exe_t  i_dec_exe,
-    input pip_reg_exe_mem_t  i_exe_mem,
-    input pip_reg_mem_wb_t   i_mem_wb,
+    input  logic clk,
+    input  logic rst_n,
+ 
+    input  logic fet_dec_write_en,
+    input  logic dec_exe_write_en,
+    input  logic exe_mem_write_en,
+    input  logic mem_wb_write_en,
+ 
+    input  pip_reg_fet_dec_t  i_fet_dec,
+    input  pip_reg_dec_exe_t  i_dec_exe,
+    input  pip_reg_exe_mem_t  i_exe_mem,
+    input  pip_reg_mem_wb_t   i_mem_wb,
 
     output pip_reg_fet_dec_t o_fet_dec,
     output pip_reg_dec_exe_t o_dec_exe,

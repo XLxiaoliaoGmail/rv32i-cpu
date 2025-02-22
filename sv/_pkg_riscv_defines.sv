@@ -203,6 +203,7 @@ package _pkg_riscv_defines;
         logic [DATA_WIDTH-1:0]      alu_result;
         logic [DATA_WIDTH-1:0]      rs2_data;
         logic [REG_ADDR_WIDTH-1:0]  rd_addr;
+        logic [2:0]                 funct3;
     } pip_reg_exe_mem_t;
 
     typedef struct packed {
@@ -212,10 +213,5 @@ package _pkg_riscv_defines;
         logic [DATA_WIDTH-1:0]      mem_data;
         logic [REG_ADDR_WIDTH-1:0]  rd_addr;
     } pip_reg_mem_wb_t;
-
-    typedef struct packed {
-        logic valid;
-        logic ready;
-    } phase_status_t;
 
 endpackage 

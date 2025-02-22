@@ -39,6 +39,7 @@ interface idecoder_if;
     logic [DATA_WIDTH-1:0]     imm;
     logic                      req_valid;
     logic                      resp_valid;
+    logic                      resp_ready;
 
     modport master (
         output instruction,
@@ -50,7 +51,8 @@ interface idecoder_if;
         input  funct7,
         input  imm,
         input  req_valid,
-        output resp_valid
+        output resp_valid,
+        input  resp_ready
     );
 
     modport self (
@@ -63,7 +65,8 @@ interface idecoder_if;
         output funct7,
         output imm,
         input  req_valid,
-        output resp_valid
+        output resp_valid,
+        input  resp_ready
     );
 endinterface
 
@@ -77,17 +80,31 @@ import _pkg_riscv_defines::*;
     parameter _SIMULATED_DELAY = 4;
 
     logic [2:0] _counter;
+    logic handling;
+
+    // handling
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            handling <= '0;
+        end else if (idecoder_if.req_valid) begin
+            handling <= '1;
+        end else if (idecoder_if.resp_valid) begin
+            handling <= '0;
+        end
+    end
 
     // _counter
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             _counter <= _SIMULATED_DELAY;
-        end else if (idecoder_if.req_valid) begin
+        end else if (handling) begin
             _counter <= _counter - 1;
         end else begin
             _counter <= _SIMULATED_DELAY;
         end
     end
+
+    assign idecoder_if.resp_ready = ~handling;
 
     // resp_valid
     always_ff @(posedge clk, negedge rst_n) begin
