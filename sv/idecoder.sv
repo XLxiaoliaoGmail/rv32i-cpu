@@ -50,8 +50,8 @@ interface idecoder_if;
         input  funct3,
         input  funct7,
         input  imm,
-        input  req_valid,
-        output resp_valid,
+        output req_valid,
+        input  resp_valid,
         input  resp_ready
     );
 
@@ -66,7 +66,7 @@ interface idecoder_if;
         output imm,
         input  req_valid,
         output resp_valid,
-        input  resp_ready
+        output resp_ready
     );
 endinterface
 
@@ -80,16 +80,26 @@ import _pkg_riscv_defines::*;
     parameter _SIMULATED_DELAY = 4;
 
     logic [2:0] _counter;
-    logic handling;
+    logic _counter_is_zero;
+    logic _counter_is_zero_d1;
 
-    // handling
+    logic [DATA_WIDTH-1:0] instruction;
+
+    // instruction
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            handling <= '0;
-        end else if (idecoder_if.req_valid) begin
-            handling <= '1;
-        end else if (idecoder_if.resp_valid) begin
-            handling <= '0;
+            instruction <= '0;
+        end else if (idecoder_if.req_valid && idecoder_if.resp_ready) begin
+            instruction <= idecoder_if.instruction;
+        end
+    end
+
+    assign _counter_is_zero = _counter == 0;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            _counter_is_zero_d1 <= '0;
+        end else begin
+            _counter_is_zero_d1 <= _counter_is_zero;
         end
     end
 
@@ -97,30 +107,22 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             _counter <= _SIMULATED_DELAY;
-        end else if (handling) begin
-            _counter <= _counter - 1;
-        end else begin
+        end else if (idecoder_if.req_valid && idecoder_if.resp_ready) begin
             _counter <= _SIMULATED_DELAY;
+        end else if (~_counter_is_zero) begin
+            _counter <= _counter - 1;
         end
     end
 
-    assign idecoder_if.resp_ready = ~handling;
+    assign idecoder_if.resp_ready = _counter_is_zero;
 
     // resp_valid
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
-            idecoder_if.resp_valid <= '0;
-        end else if (_counter == 0) begin
-            idecoder_if.resp_valid <= '1;
-        end else begin
-            idecoder_if.resp_valid <= '0;
-        end
-    end
+    assign idecoder_if.resp_valid = _counter_is_zero && ~_counter_is_zero_d1;
 
-    // 指令字段提取
+    // opcode
     assign idecoder_if.opcode = opcode_t'(idecoder_if.instruction[6:0]);  // 添加显式类型转换  
 
-    // 根据指令类型选择性地提取字段
+    // others
     always_comb begin
         // 默认值
         idecoder_if.rs1_addr = '0;
@@ -184,15 +186,6 @@ import _pkg_riscv_defines::*;
             OP_LUI, OP_AUIPC: begin
                 idecoder_if.rd_addr = idecoder_if.instruction[11:7];
                 idecoder_if.imm = {idecoder_if.instruction[31:12], 12'b0};
-            end
-
-            default: begin
-                idecoder_if.rs1_addr = '0;
-                idecoder_if.rs2_addr = '0;
-                idecoder_if.rd_addr = '0;
-                idecoder_if.funct3 = '0;
-                idecoder_if.funct7 = '0;
-                idecoder_if.imm = '0;
             end
         endcase
     end

@@ -39,6 +39,16 @@ module icache (
 );
     import _pkg_riscv_defines::*;
 
+    // 保存输入参数
+    logic [DATA_WIDTH-1:0] req_addr;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if (!rst_n) begin
+            req_addr <= '0;
+        end else if (icache_if.req_valid && icache_if.resp_ready) begin
+            req_addr <= icache_if.req_addr;
+        end
+    end
+
     // 缓存行结构体定义
     typedef struct packed {
         logic valid; // 有效位
@@ -60,9 +70,9 @@ module icache (
     logic [ICACHE_INDEX_WIDTH-1:0]   addr_index;
     logic [ICACHE_LINE_OFFSET-1:0]   addr_line_offset;
 
-    assign addr_tag = icache_if.req_addr[DATA_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH];
-    assign addr_index = icache_if.req_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH];
-    assign addr_line_offset = icache_if.req_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-ICACHE_LINE_OFFSET];
+    assign addr_tag = req_addr[DATA_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH];
+    assign addr_index = req_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH];
+    assign addr_line_offset = req_addr[DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-1 : DATA_WIDTH-ICACHE_TAG_WIDTH-ICACHE_INDEX_WIDTH-ICACHE_LINE_OFFSET];
 
     /************************ HIT CHECK *****************************/
 
@@ -144,15 +154,13 @@ module icache (
     assign icache_if.resp_ready = now_state == IDLE;
 
     // icache_if.resp_data
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            icache_if.resp_data <= '0;
-        end else if (now_state == LOOKUP && hit_valid) begin
+    always_comb begin
+        icache_if.resp_data = '0;
+        if (now_state == LOOKUP && hit_valid) begin
             // Just 2 ways
-            icache_if.resp_data <= cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[
-                addr_line_offset * 8 +: DATA_WIDTH];
+            icache_if.resp_data = cache_mem[hit[1] ? 1'b1 : 1'b0][addr_index].data[addr_line_offset * 8 +: DATA_WIDTH];
         end else if (now_state == AXI_R && rx_counter == addr_line_offset) begin
-            icache_if.resp_data <= axi_if.rdata;
+            icache_if.resp_data = axi_if.rdata;
         end
     end
 
@@ -178,7 +186,7 @@ module icache (
     end
 
     // axi_if.araddr
-    assign axi_if.araddr = (now_state == AXI_AR) ? {icache_if.req_addr[31:5], 5'b0} : '0;
+    assign axi_if.araddr = (now_state == AXI_AR) ? {req_addr[31:5], 5'b0} : '0;
 
     // axi_if.arlen
     assign axi_if.arlen = 8'd7;

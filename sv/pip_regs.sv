@@ -27,7 +27,7 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             o_fet_dec <= '0;
-        end else if (i_fet_dec_write_en) begin
+        end else if (fet_dec_write_en) begin
             o_fet_dec <= i_fet_dec;
         end
     end
@@ -35,7 +35,7 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             o_dec_exe <= '0;
-        end else if (i_dec_exe_write_en) begin
+        end else if (dec_exe_write_en) begin
             o_dec_exe <= i_dec_exe;
         end
     end     
@@ -43,7 +43,7 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             o_exe_mem <= '0;
-        end else if (i_exe_mem_write_en) begin
+        end else if (exe_mem_write_en) begin
             o_exe_mem <= i_exe_mem;
         end
     end
@@ -51,7 +51,7 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             o_mem_wb <= '0;
-        end else if (i_mem_wb_write_en) begin
+        end else if (mem_wb_write_en) begin
             o_mem_wb <= i_mem_wb;
         end
     end

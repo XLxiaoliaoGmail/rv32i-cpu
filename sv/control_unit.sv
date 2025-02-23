@@ -47,15 +47,15 @@ import _pkg_riscv_defines::*;
     logic exe_mem_write_en;
     logic mem_wb_write_en;
 
-    assign fet_dec_write_en = fet_status_valid && dec_status_ready;
-    assign dec_exe_write_en = dec_status_valid && exe_status_ready;
-    assign exe_mem_write_en = exe_status_valid && mem_status_ready;
-    assign mem_wb_write_en = mem_status_valid && wb_status_ready;
-
     logic fet_dec_write_en_d1;
     logic dec_exe_write_en_d1;
     logic exe_mem_write_en_d1;
     logic mem_wb_write_en_d1;
+
+    assign fet_dec_write_en = fet_status_valid && dec_status_ready && ~fet_dec_write_en_d1;
+    assign dec_exe_write_en = dec_status_valid && exe_status_ready && ~dec_exe_write_en_d1;
+    assign exe_mem_write_en = exe_status_valid && mem_status_ready && ~exe_mem_write_en_d1;
+    assign mem_wb_write_en = mem_status_valid && wb_status_ready && ~mem_wb_write_en_d1;
 
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
@@ -137,7 +137,7 @@ import _pkg_riscv_defines::*;
     assign dec_status_ready = ~dec_status_waiting && idecoder_if.resp_ready;
     assign exe_status_ready = ~exe_status_waiting && alu_if.resp_ready;
     assign mem_status_ready = ~mem_status_waiting && dcache_if.resp_ready;
-    assign wb_status_ready  = ~wb_status_waiting && reg_file_if.resp_ready;
+    assign wb_status_ready  = ~wb_status_waiting && '1;
 
     /************************ PIPLINE WAITING *****************************/
 
@@ -385,12 +385,6 @@ import _pkg_riscv_defines::*;
     assign icache_if.req_addr = pc;
 
     /************************ IDECODER *****************************/
-
-    idecoder idecoder(
-        .clk(clk),
-        .rst_n(rst_n),
-        .idecoder_if(idecoder_if)
-    );
 
     // idecoder_if.req_valid
     always_ff @(posedge clk, negedge rst_n) begin

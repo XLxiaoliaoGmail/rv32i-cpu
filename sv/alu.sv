@@ -10,6 +10,7 @@ import _pkg_riscv_defines::*;
     
     logic [DATA_WIDTH-1:0] result;    
     logic                  resp_valid;
+    logic                  resp_ready;
 
     // 请求者端口（如执行单元）
     modport master (
@@ -18,7 +19,8 @@ import _pkg_riscv_defines::*;
         output req_valid,
         output alu_op,
         input  result,
-        input  resp_valid
+        input  resp_valid,
+        output resp_ready
     );
 
     // 响应者端口（ALU）
@@ -28,7 +30,8 @@ import _pkg_riscv_defines::*;
         input  req_valid,
         input  alu_op,
         output result,
-        output resp_valid
+        output resp_valid,
+        input  resp_ready
     );
 endinterface
 
@@ -42,86 +45,71 @@ import _pkg_riscv_defines::*;
 );
     parameter _SIMULATED_DELAY = 10;
 
-    // 内部信号
-    logic signed [DATA_WIDTH-1:0] operand1_signed;
-    logic signed [DATA_WIDTH-1:0] operand2_signed;
-    logic [3:0] _counter;  // 用于计数10个周期
-    logic [DATA_WIDTH-1:0] result_reg;
-    
-    assign operand1_signed = alu_if.operand1;
-    assign operand2_signed = alu_if.operand2;
+    logic signed [DATA_WIDTH-1:0] src1_signed;
+    logic signed [DATA_WIDTH-1:0] src2_signed;
 
-    // 状态机定义
-    typedef enum logic [1:0] {
-        IDLE,      
-        PROCESSING,
-        FINISH     
-    } state_t;
-    
-    state_t curr_state, next_state;
+    logic [3:0] _counter;
+    logic _counter_is_zero;
+    logic _counter_is_zero_d1;
 
-    // curr_state
+    logic [DATA_WIDTH-1:0] src1;
+    logic [DATA_WIDTH-1:0] src2;
+    alu_op_t op;
+
+    // src1 src2 op
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            curr_state <= IDLE;
-        end else begin
-            curr_state <= next_state;
+            src1 <= '0;
+            src2 <= '0;
+            op <= ALU_ADD;
+        end else if (alu_if.req_valid && alu_if.resp_ready) begin
+            src1 <= alu_if.operand1;
+            src2 <= alu_if.operand2;
+            op <= alu_if.alu_op;
         end
     end
+
+    assign src1_signed = src1;
+    assign src2_signed = src2;
 
     // _counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             _counter <= _SIMULATED_DELAY;
-        end else if (curr_state == PROCESSING) begin
-            _counter <= _counter - 1;
-        end else begin
+        end else if (alu_if.req_valid && alu_if.resp_ready) begin
             _counter <= _SIMULATED_DELAY;
+        end else if (~_counter_is_zero) begin
+            _counter <= _counter - 1;
         end
     end
 
-    // 状态转换逻辑
-    always_comb begin
-        next_state = curr_state;
-        case (curr_state)
-            IDLE: begin
-                if (alu_if.req_valid) begin
-                    next_state = PROCESSING;
-                end
-            end
-            PROCESSING: begin
-                if (_counter == 0) begin
-                    next_state = FINISH;
-                end
-            end
-            FINISH: begin
-                next_state = IDLE;
-            end
-        endcase
+    assign _counter_is_zero = _counter == 0;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            _counter_is_zero_d1 <= '0;
+        end else begin
+            _counter_is_zero_d1 <= _counter_is_zero;
+        end
     end
 
     // 计算结果
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            result_reg <= '0;
-        end else if (curr_state == PROCESSING && _counter == 0) begin
-            case (alu_if.alu_op)
-                ALU_ADD:  result_reg <= alu_if.operand1 + alu_if.operand2;
-                ALU_SUB:  result_reg <= alu_if.operand1 - alu_if.operand2;
-                ALU_AND:  result_reg <= alu_if.operand1 & alu_if.operand2;
-                ALU_OR:   result_reg <= alu_if.operand1 | alu_if.operand2;
-                ALU_XOR:  result_reg <= alu_if.operand1 ^ alu_if.operand2;
-                ALU_SLT:  result_reg <= {31'b0, operand1_signed < operand2_signed};
-                ALU_SLTU: result_reg <= {31'b0, alu_if.operand1 < alu_if.operand2};
-                ALU_SLL:  result_reg <= alu_if.operand1 << alu_if.operand2[4:0];
-                ALU_SRL:  result_reg <= alu_if.operand1 >> alu_if.operand2[4:0];
-                ALU_SRA:  result_reg <= operand1_signed >>> alu_if.operand2[4:0];
+    always_comb begin
+        case (op)
+                ALU_ADD:  alu_if.result <= src1 + src2;
+                ALU_SUB:  alu_if.result <= src1 - src2;
+                ALU_AND:  alu_if.result <= src1 & src2;
+                ALU_OR:   alu_if.result <= src1 | src2;
+                ALU_XOR:  alu_if.result <= src1 ^ src2;
+                ALU_SLT:  alu_if.result <= {31'b0, src1_signed < src2_signed};
+                ALU_SLTU: alu_if.result <= {31'b0, src1 < src2};
+                ALU_SLL:  alu_if.result <= src1 << src2[4:0];
+                ALU_SRL:  alu_if.result <= src1 >> src2[4:0];
+                ALU_SRA:  alu_if.result <= src1_signed >>> src2[4:0];
             endcase
-        end
     end
 
     // 输出信号赋值
-    assign alu_if.result = result_reg;
-    assign alu_if.resp_valid = (curr_state == FINISH);
+    assign alu_if.resp_valid = _counter_is_zero && ~_counter_is_zero_d1;
+    assign alu_if.resp_ready = _counter_is_zero;
 
 endmodule
