@@ -181,21 +181,21 @@ package _pkg_riscv_defines;
 
     /*********************** PIPELINE REGISTER ***********************/
 
-    typedef struct packed {
-        logic [ADDR_WIDTH-1:0]      pc;         
-        logic [DATA_WIDTH-1:0]      instruction;
-    } pip_reg_fet_dec_t;
+    // typedef struct packed {
+    //     logic [ADDR_WIDTH-1:0]      pc;         
+    //     logic [DATA_WIDTH-1:0]      instruction;
+    // } pip_data_fet_dec_t;
 
-    typedef struct packed {
-        opcode_t                    opcode;
-        logic [ADDR_WIDTH-1:0]      pc;
-        logic [DATA_WIDTH-1:0]      rs1_data;
-        logic [DATA_WIDTH-1:0]      rs2_data;
-        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
-        logic [DATA_WIDTH-1:0]      imm;  
-        logic [2:0]                 funct3;
-        logic [6:0]                 funct7;
-    } pip_reg_dec_exe_t;
+    // typedef struct packed {
+    //     opcode_t                    opcode;
+    //     logic [ADDR_WIDTH-1:0]      pc;
+    //     logic [DATA_WIDTH-1:0]      rs1_data;
+    //     logic [DATA_WIDTH-1:0]      rs2_data;
+    //     logic [REG_ADDR_WIDTH-1:0]  rd_addr;
+    //     logic [DATA_WIDTH-1:0]      imm;  
+    //     logic [2:0]                 funct3;
+    //     logic [6:0]                 funct7;
+    // } pip_data_dec_exe_t;
 
     typedef struct packed {
         opcode_t                    opcode;
@@ -204,7 +204,7 @@ package _pkg_riscv_defines;
         logic [DATA_WIDTH-1:0]      rs2_data;
         logic [REG_ADDR_WIDTH-1:0]  rd_addr;
         logic [2:0]                 funct3;
-    } pip_reg_exe_mem_t;
+    } pip_data_exe_mem_t;
 
     typedef struct packed {
         opcode_t                    opcode;
@@ -212,6 +212,6 @@ package _pkg_riscv_defines;
         logic [DATA_WIDTH-1:0]      alu_result;
         logic [DATA_WIDTH-1:0]      mem_data;
         logic [REG_ADDR_WIDTH-1:0]  rd_addr;
-    } pip_reg_mem_wb_t;
+    } pip_data_mem_wb_t;
 
 endpackage 
