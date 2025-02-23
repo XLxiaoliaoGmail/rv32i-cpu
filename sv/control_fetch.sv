@@ -37,6 +37,7 @@ import _pkg_riscv_defines::*;
     pip_fet_dec_if.pre pip_to_post_if,
     // pause
     input logic pause,
+    // forward
     input logic pc_write_en,
     input [DATA_WIDTH-1:0] pc_next
 );
@@ -46,7 +47,7 @@ import _pkg_riscv_defines::*;
             pc <= 0;
         end else if (pc_write_en) begin
             pc <= pc_next;
-        end else begin
+        end else if (~pause && pip_to_post_if.ready && pip_to_post_if.valid) begin
             pc <= pc + 4;
         end
     end
@@ -55,8 +56,12 @@ import _pkg_riscv_defines::*;
         rst_n_d1 <= rst_n;
     end
     logic pause_d1;
-    always_ff @(posedge clk) begin
-        pause_d1 <= pause;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pause_d1 <= 0;
+        end else begin
+            pause_d1 <= pause;
+        end
     end
     /************************ TO-POST *****************************/
     // The icache valid & data just keep for one cycle
@@ -78,12 +83,18 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pip_to_post_if.ins <= 0;
-        end else if (icache_if.resp_valid) begin
+        end else if (~pause && icache_if.resp_valid) begin
             pip_to_post_if.ins <= icache_if.resp_data;
         end
     end
     // pip_to_post_if.pc
-    assign pip_to_post_if.pc = pc;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pip_to_post_if.pc <= 0;
+        end else if (~pause && icache_if.resp_valid) begin
+            pip_to_post_if.pc <= pc;
+        end
+    end
 
     /************************ ICACHE *****************************/
     // icache_if.req_valid
@@ -100,4 +111,6 @@ import _pkg_riscv_defines::*;
             icache_if.req_valid <= 1;
         end
     end
+    // icache_if.req_addr
+    assign icache_if.req_addr = pc;
 endmodule

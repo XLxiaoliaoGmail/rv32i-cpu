@@ -56,26 +56,46 @@ import _pkg_riscv_defines::*;
     pip_fet_dec_if.post pip_to_pre_if,
     pip_dec_exe_if.pre pip_to_post_if,
     // pause
-    input logic pause,
-    input logic [REG_ADDR_WIDTH-1:0] wb_rd_addr,
-    input logic [DATA_WIDTH-1:0] wb_rd_data,
-    input logic wb_rd_en
+    input logic pause
 );
     logic pause_d1;
-    always_ff @(posedge clk) begin
-        pause_d1 <= pause;
-    end
-    /************************ TO-PRE *****************************/
-    // pip_to_pre_if.ready
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pip_to_post_if.ready <= 1;
-        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
-            pip_to_post_if.ready <= 0;
-        end else if (~pause && idecoder_if.valid) begin
-            pip_to_post_if.ready <= 1;
+            pause_d1 <= 0;
+        end else begin
+            pause_d1 <= pause;
         end
     end
+
+    /************************ SAVE DATA FROM PRE *****************************/
+    logic [ADDR_WIDTH-1:0] _pre_pc;         
+    logic [DATA_WIDTH-1:0] _pre_ins;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            _pre_pc <= '0;
+            _pre_ins <= '0;
+        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+            _pre_pc <= pip_to_pre_if.pc;
+            _pre_ins <= pip_to_pre_if.ins;
+        end
+    end
+
+    /************************ TO-PRE *****************************/
+    // pip_to_pre_if.ready
+    logic pip_to_pre_if_ready_pre;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pip_to_pre_if_ready_pre <= 1;
+        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+            pip_to_pre_if_ready_pre <= 0;
+        end else if (~pause && idecoder_if.resp_valid) begin
+            pip_to_pre_if_ready_pre <= 1;
+        end
+    end
+    // If data to post stage havent been taken, cannot receive pre stage data
+    assign pip_to_pre_if.ready = pip_to_pre_if_ready_pre && ~pip_to_post_if.valid;
+
     /************************ TO-POST *****************************/
     // The idecoder valid & data just keep for one cycle
     // So must sample here.
@@ -94,7 +114,7 @@ import _pkg_riscv_defines::*;
     // pip_to_post_if.data
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pip_to_post_if.opcode    <= '0;
+            pip_to_post_if.opcode    <= OP_R_TYPE;
             pip_to_post_if.pc        <= '0;
             pip_to_post_if.rs1_data  <= '0;
             pip_to_post_if.rs2_data  <= '0;
@@ -102,7 +122,7 @@ import _pkg_riscv_defines::*;
             pip_to_post_if.imm       <= '0;
             pip_to_post_if.funct3    <= '0;
             pip_to_post_if.funct7    <= '0;
-        end else if (idecoder_if.resp_valid) begin
+        end else if (~pause && idecoder_if.resp_valid) begin
             // from idecoder
             pip_to_post_if.opcode    <= idecoder_if.opcode;
             pip_to_post_if.rd_addr   <= idecoder_if.rd_addr;
@@ -112,30 +132,31 @@ import _pkg_riscv_defines::*;
             // from reg_file
             pip_to_post_if.rs1_data  <= reg_file_if.rs1_data;
             pip_to_post_if.rs2_data  <= reg_file_if.rs2_data;
-            // from pre stage
-            pip_to_post_if.pc        <= pip_to_pre_if.pc;
         end
     end
+    assign pip_to_post_if.pc = _pre_pc;
     /************************ IDECODER *****************************/
     // idecoder_if.req_valid
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            idecoder_if.req_valid <= 0;
-        end else if (~pause && pause_d1) begin
-            idecoder_if.req_valid <= 1;
-        end else if (idecoder_if.req_valid && idecoder_if.resp_ready) begin
-            idecoder_if.req_valid <= 0;
+    always_comb begin
+        idecoder_if.req_valid = 0;
+        if (~pause && pause_d1) begin
+            idecoder_if.req_valid = 1;
         end else if (~pause && pip_to_pre_if.valid && pip_to_pre_if.ready) begin
-            idecoder_if.req_valid <= 1;
+            idecoder_if.req_valid = 1;
         end
     end
+    // idecoder_if.instruction
+    assign idecoder_if.instruction = _pre_ins;
 
     /************************ REG-FILE *****************************/
     // rs1 rs2
-    assign reg_file_if.rs1_addr = idecoder_if.rs1_addr;
-    assign reg_file_if.rs2_addr = idecoder_if.rs2_addr;
-    // write back
-    assign reg_file_if.rd_addr = wb_rd_addr;
-    assign reg_file_if.rd_data = wb_rd_data;
-    assign reg_file_if.write_en = wb_rd_en;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            reg_file_if.rs1_addr <= '0;
+            reg_file_if.rs2_addr <= '0;
+        end else if (~pause && idecoder_if.resp_valid) begin
+            reg_file_if.rs1_addr <= idecoder_if.rs1_addr;
+            reg_file_if.rs2_addr <= idecoder_if.rs2_addr;
+        end
+    end
 endmodule

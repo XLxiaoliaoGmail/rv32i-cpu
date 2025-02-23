@@ -97,7 +97,7 @@ import _pkg_riscv_defines::*;
     assign _counter_is_zero = _counter == 0;
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            _counter_is_zero_d1 <= '0;
+            _counter_is_zero_d1 <= '1;
         end else begin
             _counter_is_zero_d1 <= _counter_is_zero;
         end
@@ -106,7 +106,7 @@ import _pkg_riscv_defines::*;
     // _counter
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            _counter <= _SIMULATED_DELAY;
+            _counter <= 0;
         end else if (idecoder_if.req_valid && idecoder_if.resp_ready) begin
             _counter <= _SIMULATED_DELAY;
         end else if (~_counter_is_zero) begin
@@ -120,7 +120,13 @@ import _pkg_riscv_defines::*;
     assign idecoder_if.resp_valid = _counter_is_zero && ~_counter_is_zero_d1;
 
     // opcode
-    assign idecoder_if.opcode = opcode_t'(idecoder_if.instruction[6:0]);  // 添加显式类型转换  
+    always_comb begin
+        if (idecoder_if.resp_valid) begin
+            idecoder_if.opcode = opcode_t'(idecoder_if.instruction[6:0]);
+        end else begin
+            idecoder_if.opcode = OP_R_TYPE;
+        end
+    end
 
     // others
     always_comb begin
@@ -132,62 +138,63 @@ import _pkg_riscv_defines::*;
         idecoder_if.funct7 = '0;
         idecoder_if.imm = '0;
 
-        case (idecoder_if.opcode)
-            // R型指令
-            OP_R_TYPE: begin
-                idecoder_if.rd_addr = idecoder_if.instruction[11:7];
-                idecoder_if.funct3 = idecoder_if.instruction[14:12];
-                idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
-                idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
-                idecoder_if.funct7 = idecoder_if.instruction[31:25];
-            end
+        if (idecoder_if.resp_valid)
+            case (idecoder_if.opcode)
+                // R型指令
+                OP_R_TYPE: begin
+                    idecoder_if.rd_addr = idecoder_if.instruction[11:7];
+                    idecoder_if.funct3 = idecoder_if.instruction[14:12];
+                    idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
+                    idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
+                    idecoder_if.funct7 = idecoder_if.instruction[31:25];
+                end
 
-            // I-type format (Immediate-Register)
-            OP_I_TYPE, OP_LOAD, OP_JALR: begin
-                idecoder_if.rd_addr = idecoder_if.instruction[11:7];
-                idecoder_if.funct3 = idecoder_if.instruction[14:12];
-                idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
-                idecoder_if.funct7 = idecoder_if.instruction[31:25];
-                idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[31:20]};
-            end
+                // I-type format (Immediate-Register)
+                OP_I_TYPE, OP_LOAD, OP_JALR: begin
+                    idecoder_if.rd_addr = idecoder_if.instruction[11:7];
+                    idecoder_if.funct3 = idecoder_if.instruction[14:12];
+                    idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
+                    idecoder_if.funct7 = idecoder_if.instruction[31:25];
+                    idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[31:20]};
+                end
 
-            // S型指令
-            OP_STORE: begin
-                idecoder_if.funct3 = idecoder_if.instruction[14:12];
-                idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
-                idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
-                idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[31:25], idecoder_if.instruction[11:7]};
-            end
+                // S型指令
+                OP_STORE: begin
+                    idecoder_if.funct3 = idecoder_if.instruction[14:12];
+                    idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
+                    idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
+                    idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[31:25], idecoder_if.instruction[11:7]};
+                end
 
-            // B型指令
-            OP_BRANCH: begin
-                idecoder_if.funct3 = idecoder_if.instruction[14:12];
-                idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
-                idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
-                idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[7], idecoder_if.instruction[30:25], 
-                      idecoder_if.instruction[11:8], 1'b0};
-            end
+                // B型指令
+                OP_BRANCH: begin
+                    idecoder_if.funct3 = idecoder_if.instruction[14:12];
+                    idecoder_if.rs1_addr = idecoder_if.instruction[19:15];
+                    idecoder_if.rs2_addr = idecoder_if.instruction[24:20];
+                    idecoder_if.imm = {{20{idecoder_if.instruction[31]}}, idecoder_if.instruction[7], idecoder_if.instruction[30:25], 
+                        idecoder_if.instruction[11:8], 1'b0};
+                end
 
-            // J-type format (Jump)
-            // 31                                  12 11      7 6      0
-            // |        idecoder_if.imm[20|10:1|11|19:12]        |   rd    | idecoder_if.opcode |
-            OP_JAL: begin
-                idecoder_if.rd_addr = idecoder_if.instruction[11:7];
-                idecoder_if.imm = {
-                    {12{idecoder_if.instruction[31]}},    // 符号扩展 [31:20]
-                    idecoder_if.instruction[19:12],       // idecoder_if.imm[19:12]
-                    idecoder_if.instruction[20],          // idecoder_if.imm[11]
-                    idecoder_if.instruction[30:21],       // idecoder_if.imm[10:1]
-                    1'b0                      // idecoder_if.imm[0]
-                };
-            end
+                // J-type format (Jump)
+                // 31                                  12 11      7 6      0
+                // |        idecoder_if.imm[20|10:1|11|19:12]        |   rd    | idecoder_if.opcode |
+                OP_JAL: begin
+                    idecoder_if.rd_addr = idecoder_if.instruction[11:7];
+                    idecoder_if.imm = {
+                        {12{idecoder_if.instruction[31]}},    // 符号扩展 [31:20]
+                        idecoder_if.instruction[19:12],       // idecoder_if.imm[19:12]
+                        idecoder_if.instruction[20],          // idecoder_if.imm[11]
+                        idecoder_if.instruction[30:21],       // idecoder_if.imm[10:1]
+                        1'b0                      // idecoder_if.imm[0]
+                    };
+                end
 
-            // U型指令
-            OP_LUI, OP_AUIPC: begin
-                idecoder_if.rd_addr = idecoder_if.instruction[11:7];
-                idecoder_if.imm = {idecoder_if.instruction[31:12], 12'b0};
-            end
-        endcase
+                // U型指令
+                OP_LUI, OP_AUIPC: begin
+                    idecoder_if.rd_addr = idecoder_if.instruction[11:7];
+                    idecoder_if.imm = {idecoder_if.instruction[31:12], 12'b0};
+                end
+            endcase
     end
 
 endmodule

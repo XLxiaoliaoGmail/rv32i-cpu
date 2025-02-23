@@ -42,4 +42,9 @@ module _tb_riscv_core();
         #10 rst_n = 1;
     end
 
+    initial begin
+        $dumpfile("./wave/_tb_riscv_core.vcd");
+        $dumpvars(0, _tb_riscv_core);
+    end
+
 endmodule

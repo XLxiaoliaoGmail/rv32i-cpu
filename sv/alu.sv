@@ -56,6 +56,26 @@ import _pkg_riscv_defines::*;
     logic [DATA_WIDTH-1:0] src2;
     alu_op_t op;
 
+    // _counter
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            _counter <= 0;
+        end else if (alu_if.req_valid && alu_if.resp_ready) begin
+            _counter <= _SIMULATED_DELAY;
+        end else if (~_counter_is_zero) begin
+            _counter <= _counter - 1;
+        end
+    end
+
+    assign _counter_is_zero = _counter == 0;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            _counter_is_zero_d1 <= '1;
+        end else begin
+            _counter_is_zero_d1 <= _counter_is_zero;
+        end
+    end
+
     // src1 src2 op
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -71,26 +91,6 @@ import _pkg_riscv_defines::*;
 
     assign src1_signed = src1;
     assign src2_signed = src2;
-
-    // _counter
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            _counter <= _SIMULATED_DELAY;
-        end else if (alu_if.req_valid && alu_if.resp_ready) begin
-            _counter <= _SIMULATED_DELAY;
-        end else if (~_counter_is_zero) begin
-            _counter <= _counter - 1;
-        end
-    end
-
-    assign _counter_is_zero = _counter == 0;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            _counter_is_zero_d1 <= '0;
-        end else begin
-            _counter_is_zero_d1 <= _counter_is_zero;
-        end
-    end
 
     // 计算结果
     always_comb begin

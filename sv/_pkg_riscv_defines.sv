@@ -179,39 +179,42 @@ package _pkg_riscv_defines;
         MEM_SIZE_W = 2'b10
     } mem_read_size_t;
 
-    /*********************** PIPELINE REGISTER ***********************/
-
-    // typedef struct packed {
-    //     logic [ADDR_WIDTH-1:0]      pc;         
-    //     logic [DATA_WIDTH-1:0]      instruction;
-    // } pip_data_fet_dec_t;
-
-    // typedef struct packed {
-    //     opcode_t                    opcode;
-    //     logic [ADDR_WIDTH-1:0]      pc;
-    //     logic [DATA_WIDTH-1:0]      rs1_data;
-    //     logic [DATA_WIDTH-1:0]      rs2_data;
-    //     logic [REG_ADDR_WIDTH-1:0]  rd_addr;
-    //     logic [DATA_WIDTH-1:0]      imm;  
-    //     logic [2:0]                 funct3;
-    //     logic [6:0]                 funct7;
-    // } pip_data_dec_exe_t;
-
-    typedef struct packed {
-        opcode_t                    opcode;
-        logic [ADDR_WIDTH-1:0]      pc_plus4;
-        logic [DATA_WIDTH-1:0]      alu_result;
-        logic [DATA_WIDTH-1:0]      rs2_data;
-        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
-        logic [2:0]                 funct3;
-    } pip_data_exe_mem_t;
-
-    typedef struct packed {
-        opcode_t                    opcode;
-        logic [ADDR_WIDTH-1:0]      pc_plus4;
-        logic [DATA_WIDTH-1:0]      alu_result;
-        logic [DATA_WIDTH-1:0]      mem_data;
-        logic [REG_ADDR_WIDTH-1:0]  rd_addr;
-    } pip_data_mem_wb_t;
-
 endpackage 
+
+interface forward_regs_if;
+    import _pkg_riscv_defines::*;
+    logic [REG_ADDR_WIDTH-1:0] addr;
+    logic [DATA_WIDTH-1:0] data;
+    logic req;
+    logic resp;
+
+    modport from(
+        output addr,
+        output data,
+        output req,
+        input resp
+    );
+
+    modport to(
+        input addr,
+        input data,
+        input req,
+        output resp
+    );
+endinterface
+
+interface forward_pc_if;
+    import _pkg_riscv_defines::*;
+    logic [DATA_WIDTH-1:0] pc;
+    logic req;
+
+    modport from(
+        output pc,
+        output req
+    );
+
+    modport to(
+        input pc,
+        input req
+    );
+endinterface

@@ -10,11 +10,31 @@ import _pkg_riscv_defines::*;
     // pip signal
     pip_exe_mem_if.post pip_to_pre_if,
     // pause
-    input logic pause
+    input logic pause,
+    // forward
+    forward_regs_if.from forward_regs_if
 );
     logic pause_d1;
-    always_ff @(posedge clk) begin
-        pause_d1 <= pause;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pause_d1 <= 0;
+        end else begin
+            pause_d1 <= pause;
+        end
+    end
+
+    /************************ FORWARD *****************************/
+    // reg file
+    assign forward_regs_if.addr = pip_to_pre_if.rd_addr;
+    assign forward_regs_if.data = dcache_if.resp_data;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            forward_regs_if.req <= 0;
+        end else if (forward_regs_if.resp) begin
+            forward_regs_if.req <= 0;
+        end else if (dcache_if.resp_valid && pip_to_pre_if.opcode == OP_LOAD) begin
+            forward_regs_if.req <= 1;
+        end
     end
 
     /************************ TO-PRE *****************************/
@@ -24,7 +44,7 @@ import _pkg_riscv_defines::*;
             pip_to_pre_if.ready <= 1;
         end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
             pip_to_pre_if.ready <= 0;
-        end else if (~pause && dcache_if.ready) begin
+        end else if (~pause && dcache_if.resp_ready) begin
             pip_to_pre_if.ready <= 1;
         end
     end

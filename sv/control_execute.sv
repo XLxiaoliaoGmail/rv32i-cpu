@@ -20,7 +20,8 @@ interface pip_exe_mem_if;
         output opcode,
         output alu_result,
         output rs2_data,
-        output rd_addr
+        output rd_addr,
+        output funct3
     );
 
     modport post(
@@ -29,7 +30,8 @@ interface pip_exe_mem_if;
         input  opcode,
         input  alu_result,
         input  rs2_data,
-        input  rd_addr
+        input  rd_addr,
+        input  funct3
     );
 endinterface
 
@@ -44,24 +46,107 @@ import _pkg_riscv_defines::*;
     pip_dec_exe_if.post pip_to_pre_if,
     pip_exe_mem_if.pre pip_to_post_if,
     // pause
-    input logic pause
+    input logic pause,
+    // forward
+    forward_regs_if.from forward_regs_if,
+    forward_pc_if.from forward_pc_if
 );
     logic pause_d1;
-    always_ff @(posedge clk) begin
-        pause_d1 <= pause;
-    end
-
-    /************************ TO-PRE *****************************/
-    // pip_to_pre_if.ready
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pip_to_pre_if.ready <= 1;
-        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
-            pip_to_pre_if.ready <= 0;
-        end else if (~pause && alu_if.valid) begin
-            pip_to_pre_if.ready <= 1;
+            pause_d1 <= 0;
+        end else begin
+            pause_d1 <= pause;
         end
     end
+    /************************ SAVE DATA FROM PRE *****************************/
+    
+    logic [ADDR_WIDTH-1:0]      _pre_pc;
+    opcode_t                    _pre_opcode;
+    logic [DATA_WIDTH-1:0]      _pre_rs1_data;
+    logic [DATA_WIDTH-1:0]      _pre_rs2_data;
+    logic [REG_ADDR_WIDTH-1:0]  _pre_rd_addr;
+    logic [DATA_WIDTH-1:0]      _pre_imm;  
+    logic [2:0]                 _pre_funct3;
+    logic [6:0]                 _pre_funct7;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            _pre_pc <= '0;
+            _pre_opcode <= '0;
+            _pre_rs1_data <= '0;
+            _pre_rs2_data <= '0;
+            _pre_rd_addr <= '0;
+            _pre_imm <= '0;
+            _pre_funct3 <= '0;
+            _pre_funct7 <= '0;
+        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+            _pre_pc <= pip_to_pre_if.pc;
+            _pre_opcode <= pip_to_pre_if.opcode;
+            _pre_rs1_data <= pip_to_pre_if.rs1_data;
+            _pre_rs2_data <= pip_to_pre_if.rs2_data;
+            _pre_rd_addr <= pip_to_pre_if.rd_addr;
+            _pre_imm <= pip_to_pre_if.imm;
+            _pre_funct3 <= pip_to_pre_if.funct3;
+            _pre_funct7 <= pip_to_pre_if.funct7;
+        end
+    end
+    
+    /************************ FORWARD *****************************/
+    // reg file
+    assign forward_regs_if.addr = pip_to_pre_if.rd_addr;
+    assign forward_regs_if.data = pip_to_post_if.alu_result;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            forward_regs_if.req <= 0;
+        end else if (forward_regs_if.resp) begin
+            forward_regs_if.req <= 0;
+        end else if (alu_if.resp_valid) begin
+            case (pip_to_pre_if.opcode)
+                OP_R_TYPE, OP_I_TYPE, OP_LUI, OP_AUIPC, OP_JAL, OP_JALR:
+                    forward_regs_if.req <= 1;
+            endcase
+        end
+    end
+    // pc
+    assign forward_pc_if.pc = pip_to_pre_if.pc + pip_to_pre_if.imm;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            forward_pc_if.req <= 0;
+        end else if (forward_pc_if.req) begin
+            forward_pc_if.req <= 0;
+        end else if (alu_if.resp_valid) begin
+            case (pip_to_pre_if.opcode)
+                OP_JAL, OP_JALR: begin
+                    forward_pc_if.req <= 1;
+                end
+                OP_BRANCH: begin
+                    case (pip_to_pre_if.funct3)
+                        BRANCH_FUN3_BEQ:  forward_pc_if.req <= (alu_if.result == 0);
+                        BRANCH_FUN3_BNE:  forward_pc_if.req <= (alu_if.result != 0);
+                        BRANCH_FUN3_BLT:  forward_pc_if.req <= (alu_if.result == 1);
+                        BRANCH_FUN3_BGE:  forward_pc_if.req <= (alu_if.result == 0);
+                        BRANCH_FUN3_BLTU: forward_pc_if.req <= (alu_if.result == 1);
+                        BRANCH_FUN3_BGEU: forward_pc_if.req <= (alu_if.result == 0);
+                    endcase
+                end
+            endcase
+        end
+    end
+    /************************ TO-PRE *****************************/
+    // pip_to_pre_if.ready
+    logic pip_to_pre_if_ready_pre;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pip_to_pre_if_ready_pre <= 1;
+        end else if (pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+            pip_to_pre_if_ready_pre <= 0;
+        end else if (~pause && alu_if.resp_valid) begin
+            pip_to_pre_if_ready_pre <= 1;
+        end
+    end
+    // If data to post stage havent been taken, cannot receive pre stage data
+    assign pip_to_pre_if.ready = pip_to_pre_if_ready_pre && ~pip_to_post_if.valid;
 
     /************************ TO-POST *****************************/
     // The idecoder valid & data just keep for one cycle
@@ -74,14 +159,17 @@ import _pkg_riscv_defines::*;
             pip_to_post_if.valid <= 0;
         end else if (pip_to_post_if.ready && pip_to_post_if.valid) begin
             pip_to_post_if.valid <= 0;
-        end else if (~pause && alu_if.resp_valid) begin
+        end else if (~pause && alu_if.resp_valid &&(
+            pip_to_pre_if.opcode == OP_LOAD ||
+            pip_to_pre_if.opcode == OP_STORE
+        )) begin
             pip_to_post_if.valid <= 1;
         end
     end
     // pip_to_post_if.data
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pip_to_post_if.opcode     <= '0;
+            pip_to_post_if.opcode     <= OP_R_TYPE;
             pip_to_post_if.rs2_data   <= '0;
             pip_to_post_if.rd_addr    <= '0;
             pip_to_post_if.alu_result <= '0;
