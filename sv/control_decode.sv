@@ -115,7 +115,6 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pip_to_post_if.opcode    <= OP_R_TYPE;
-            pip_to_post_if.pc        <= '0;
             pip_to_post_if.rs1_data  <= '0;
             pip_to_post_if.rs2_data  <= '0;
             pip_to_post_if.rd_addr   <= '0;
@@ -150,13 +149,6 @@ import _pkg_riscv_defines::*;
 
     /************************ REG-FILE *****************************/
     // rs1 rs2
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            reg_file_if.rs1_addr <= '0;
-            reg_file_if.rs2_addr <= '0;
-        end else if (~pause && idecoder_if.resp_valid) begin
-            reg_file_if.rs1_addr <= idecoder_if.rs1_addr;
-            reg_file_if.rs2_addr <= idecoder_if.rs2_addr;
-        end
-    end
+    assign reg_file_if.rs1_addr = idecoder_if.rs1_addr;
+    assign reg_file_if.rs2_addr = idecoder_if.rs2_addr;
 endmodule

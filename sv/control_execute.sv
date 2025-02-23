@@ -73,7 +73,7 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             _pre_pc <= '0;
-            _pre_opcode <= '0;
+            _pre_opcode <= OP_R_TYPE;
             _pre_rs1_data <= '0;
             _pre_rs2_data <= '0;
             _pre_rd_addr <= '0;
@@ -94,7 +94,7 @@ import _pkg_riscv_defines::*;
     
     /************************ FORWARD *****************************/
     // reg file
-    assign forward_regs_if.addr = pip_to_pre_if.rd_addr;
+    assign forward_regs_if.addr = _pre_rd_addr;
     assign forward_regs_if.data = pip_to_post_if.alu_result;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -102,33 +102,33 @@ import _pkg_riscv_defines::*;
         end else if (forward_regs_if.resp) begin
             forward_regs_if.req <= 0;
         end else if (alu_if.resp_valid) begin
-            case (pip_to_pre_if.opcode)
+            case (_pre_opcode)
                 OP_R_TYPE, OP_I_TYPE, OP_LUI, OP_AUIPC, OP_JAL, OP_JALR:
                     forward_regs_if.req <= 1;
             endcase
         end
     end
     // pc
-    assign forward_pc_if.pc = pip_to_pre_if.pc + pip_to_pre_if.imm;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            forward_pc_if.req <= 0;
-        end else if (forward_pc_if.req) begin
-            forward_pc_if.req <= 0;
-        end else if (alu_if.resp_valid) begin
-            case (pip_to_pre_if.opcode)
+    assign forward_pc_if.pc = _pre_pc + _pre_imm;
+    always_comb begin
+        forward_pc_if.branch = 0;
+        forward_pc_if.valid = 0;
+        if (alu_if.resp_valid) begin
+            case (_pre_opcode)
                 OP_JAL, OP_JALR: begin
-                    forward_pc_if.req <= 1;
+                    forward_pc_if.branch = 1;
+                    forward_pc_if.valid = 1;
                 end
                 OP_BRANCH: begin
-                    case (pip_to_pre_if.funct3)
-                        BRANCH_FUN3_BEQ:  forward_pc_if.req <= (alu_if.result == 0);
-                        BRANCH_FUN3_BNE:  forward_pc_if.req <= (alu_if.result != 0);
-                        BRANCH_FUN3_BLT:  forward_pc_if.req <= (alu_if.result == 1);
-                        BRANCH_FUN3_BGE:  forward_pc_if.req <= (alu_if.result == 0);
-                        BRANCH_FUN3_BLTU: forward_pc_if.req <= (alu_if.result == 1);
-                        BRANCH_FUN3_BGEU: forward_pc_if.req <= (alu_if.result == 0);
+                    case (_pre_funct3)
+                        BRANCH_FUN3_BEQ:  forward_pc_if.branch = (alu_if.result == 0);
+                        BRANCH_FUN3_BNE:  forward_pc_if.branch = (alu_if.result != 0);
+                        BRANCH_FUN3_BLT:  forward_pc_if.branch = (alu_if.result == 1);
+                        BRANCH_FUN3_BGE:  forward_pc_if.branch = (alu_if.result == 0);
+                        BRANCH_FUN3_BLTU: forward_pc_if.branch = (alu_if.result == 1);
+                        BRANCH_FUN3_BGEU: forward_pc_if.branch = (alu_if.result == 0);
                     endcase
+                    forward_pc_if.valid = 1;
                 end
             endcase
         end
@@ -160,27 +160,21 @@ import _pkg_riscv_defines::*;
         end else if (pip_to_post_if.ready && pip_to_post_if.valid) begin
             pip_to_post_if.valid <= 0;
         end else if (~pause && alu_if.resp_valid &&(
-            pip_to_pre_if.opcode == OP_LOAD ||
-            pip_to_pre_if.opcode == OP_STORE
+            _pre_opcode == OP_LOAD ||
+            _pre_opcode == OP_STORE
         )) begin
             pip_to_post_if.valid <= 1;
         end
     end
     // pip_to_post_if.data
+    assign pip_to_post_if.opcode   = _pre_opcode;
+    assign pip_to_post_if.rs2_data = _pre_rs2_data;
+    assign pip_to_post_if.rd_addr  = _pre_rd_addr;
+    assign pip_to_post_if.funct3   = _pre_funct3;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pip_to_post_if.opcode     <= OP_R_TYPE;
-            pip_to_post_if.rs2_data   <= '0;
-            pip_to_post_if.rd_addr    <= '0;
             pip_to_post_if.alu_result <= '0;
-            pip_to_post_if.funct3     <= '0;
         end else if (alu_if.resp_valid) begin
-            // from pre stage
-            pip_to_post_if.opcode     <= pip_to_pre_if.opcode;
-            pip_to_post_if.rs2_data   <= pip_to_pre_if.rs2_data;
-            pip_to_post_if.rd_addr    <= pip_to_pre_if.rd_addr;
-            pip_to_post_if.funct3     <= pip_to_pre_if.funct3;
-            // from alu
             pip_to_post_if.alu_result <= alu_if.result;
         end
     end
@@ -207,18 +201,18 @@ import _pkg_riscv_defines::*;
         alu_if.operand1 = '0;
         alu_if.operand2 = '0;
         alu_if.alu_op = ALU_ADD;
-        case (pip_to_pre_if.opcode)
+        case (_pre_opcode)
             OP_R_TYPE: begin
                 // R型指令：使用寄存器值
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.rs2_data;
-                case (pip_to_pre_if.funct3)
-                    R_FUN3_ADD_SUB:  alu_if.alu_op = (pip_to_pre_if.funct7[5]) ? ALU_SUB : ALU_ADD;
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_rs2_data;
+                case (_pre_funct3)
+                    R_FUN3_ADD_SUB:  alu_if.alu_op = (_pre_funct7[5]) ? ALU_SUB : ALU_ADD;
                     R_FUN3_AND:      alu_if.alu_op = ALU_AND;
                     R_FUN3_OR:       alu_if.alu_op = ALU_OR; 
                     R_FUN3_XOR:      alu_if.alu_op = ALU_XOR;
                     R_FUN3_SLL:      alu_if.alu_op = ALU_SLL;
-                    R_FUN3_SRL_SRA:  alu_if.alu_op = (pip_to_pre_if.funct7[5]) ? ALU_SRA : ALU_SRL;
+                    R_FUN3_SRL_SRA:  alu_if.alu_op = (_pre_funct7[5]) ? ALU_SRA : ALU_SRL;
                     R_FUN3_SLT:      alu_if.alu_op = ALU_SLT;
                     R_FUN3_SLTU:     alu_if.alu_op = ALU_SLTU;
                 endcase
@@ -226,9 +220,9 @@ import _pkg_riscv_defines::*;
 
             OP_I_TYPE: begin
                 // I型指令：使用rs1和立即数
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.imm;
-                case (pip_to_pre_if.funct3)
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_imm;
+                case (_pre_funct3)
                     I_FUN3_ADDI:     alu_if.alu_op = ALU_ADD;
                     I_FUN3_ANDI:     alu_if.alu_op = ALU_AND;
                     I_FUN3_ORI:      alu_if.alu_op = ALU_OR;
@@ -236,22 +230,22 @@ import _pkg_riscv_defines::*;
                     I_FUN3_SLTI:     alu_if.alu_op = ALU_SLT;
                     I_FUN3_SLTIU:    alu_if.alu_op = ALU_SLTU;
                     I_FUN3_SLLI:     alu_if.alu_op = ALU_SLL;
-                    I_FUN3_SRLI_SRAI:alu_if.alu_op = (pip_to_pre_if.funct7[5]) ? ALU_SRA : ALU_SRL;
+                    I_FUN3_SRLI_SRAI:alu_if.alu_op = (_pre_funct7[5]) ? ALU_SRA : ALU_SRL;
                 endcase
             end
 
             OP_LOAD, OP_STORE: begin
                 // 加载/存储指令：计算地址
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.imm;
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_imm;
                 alu_if.alu_op = ALU_ADD;
             end
 
             OP_BRANCH: begin
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.rs2_data;
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_rs2_data;
                 
-                case(pip_to_pre_if.funct3)
+                case(_pre_funct3)
                     BRANCH_FUN3_BEQ:  alu_if.alu_op = ALU_SUB;  // beq: 相等判断用减法
                     BRANCH_FUN3_BNE:  alu_if.alu_op = ALU_SUB;  // bne: 不相等判断用减法
                     BRANCH_FUN3_BLT:  alu_if.alu_op = ALU_SLT;  // blt: 有符号小于比较
@@ -265,34 +259,34 @@ import _pkg_riscv_defines::*;
             OP_LUI: begin
                 // LUI：直接传递立即数
                 alu_if.operand1 = 32'b0;
-                alu_if.operand2 = pip_to_pre_if.imm;
+                alu_if.operand2 = _pre_imm;
                 alu_if.alu_op = ALU_ADD;
             end
 
             OP_AUIPC: begin
                 // AUIPC：PC加立即数
-                alu_if.operand1 = pip_to_pre_if.pc;
-                alu_if.operand2 = pip_to_pre_if.imm;
+                alu_if.operand1 = _pre_pc;
+                alu_if.operand2 = _pre_imm;
                 alu_if.alu_op = ALU_ADD;
             end
 
             OP_JAL: begin
                 // JAL：PC + imm
-                alu_if.operand1 = pip_to_pre_if.pc;
-                alu_if.operand2 = pip_to_pre_if.imm;
+                alu_if.operand1 = _pre_pc;
+                alu_if.operand2 = _pre_imm;
                 alu_if.alu_op = ALU_ADD;
             end
 
             OP_JALR: begin
                 // JALR：rs1 + imm
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.imm;
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_imm;
                 alu_if.alu_op = ALU_ADD;
             end
 
             OP_FENCE, OP_SYSTEM: begin
-                alu_if.operand1 = pip_to_pre_if.rs1_data;
-                alu_if.operand2 = pip_to_pre_if.rs2_data;
+                alu_if.operand1 = _pre_rs1_data;
+                alu_if.operand2 = _pre_rs2_data;
                 alu_if.alu_op = ALU_ADD;
             end
         endcase

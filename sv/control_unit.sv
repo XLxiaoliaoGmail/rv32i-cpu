@@ -24,19 +24,21 @@ import _pkg_riscv_defines::*;
     logic [DATA_WIDTH-1:0] wb_pc;
 
     logic pause_fetch;
-    always_comb begin
-        pause_fetch = 0;
-        // If jump or branch, pause fetch until EXE is ready 
-        if (~pip_dec_exe_if.ready) begin
-            case (pip_dec_exe_if.opcode)
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pause_fetch <= 0;
+        end else if (icache_if.resp_valid) begin
+            case (icache_if.resp_data[6:0])
                 OP_JAL, OP_JALR, OP_BRANCH:
-                    pause_fetch = 1;
+                    pause_fetch <= 1;
             endcase
+        end else if (forward_pc_from_exe_if.valid) begin
+            pause_fetch <= 0;
         end
     end
     
     assign wb_pc = forward_pc_from_exe_if.pc;
-    assign wb_pc_en = forward_pc_from_exe_if.req;
+    assign wb_pc_en = forward_pc_from_exe_if.branch && forward_pc_from_exe_if.valid;
 
     /************************ FORWARD REG *****************************/
 

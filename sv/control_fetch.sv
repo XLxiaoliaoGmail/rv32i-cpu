@@ -41,6 +41,26 @@ import _pkg_riscv_defines::*;
     input logic pc_write_en,
     input [DATA_WIDTH-1:0] pc_next
 );
+    logic rst_n_d1;
+    always_ff @(posedge clk) begin
+        rst_n_d1 <= rst_n;
+    end
+    logic pc_write_en_d1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pc_write_en_d1 <= 0;
+        end else begin
+            pc_write_en_d1 <= pc_write_en;
+        end
+    end
+    logic pause_d1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pause_d1 <= 0;
+        end else begin
+            pause_d1 <= pause;
+        end
+    end
     logic [DATA_WIDTH-1:0] pc;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -49,18 +69,8 @@ import _pkg_riscv_defines::*;
             pc <= pc_next;
         end else if (~pause && pip_to_post_if.ready && pip_to_post_if.valid) begin
             pc <= pc + 4;
-        end
-    end
-    logic rst_n_d1;
-    always_ff @(posedge clk) begin
-        rst_n_d1 <= rst_n;
-    end
-    logic pause_d1;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pause_d1 <= 0;
-        end else begin
-            pause_d1 <= pause;
+        end else if (~pause && pause_d1 && ~pc_write_en_d1) begin
+            pc <= pc + 4;
         end
     end
     /************************ TO-POST *****************************/

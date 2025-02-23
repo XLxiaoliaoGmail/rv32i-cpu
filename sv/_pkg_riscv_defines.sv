@@ -206,15 +206,18 @@ endinterface
 interface forward_pc_if;
     import _pkg_riscv_defines::*;
     logic [DATA_WIDTH-1:0] pc;
-    logic req;
+    logic branch;
+    logic valid;
 
     modport from(
         output pc,
-        output req
+        output branch,
+        output valid
     );
 
     modport to(
         input pc,
-        input req
+        input branch,
+        input valid
     );
 endinterface
