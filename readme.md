@@ -1,4 +1,4 @@
-# RISC-V RV32I Multi-cycle CPU Design
+# RISC-V Multi-cycle CPU Design
 
 现已有新的流水线版本，请看 [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
 
