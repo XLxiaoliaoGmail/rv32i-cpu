@@ -1,11 +1,8 @@
 # RISC-V RV32I Multi-cycle CPU Design
 
-## Language
-查看中文版，点击 [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md). 
+## Note
 
 现已有新的流水线版本，请看 [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
-
-For chinese version, click [readme-cn.md](https://github.com/XLxiaoliaoGmail/rv32i-cpu/blob/mul-cycle/readme-cn.md). 
 
 There's a new version of the pipeline available. Please check [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
 
