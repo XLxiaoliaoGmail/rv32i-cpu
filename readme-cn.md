@@ -1,5 +1,7 @@
 # RISC-V RV32I 多周期CPU设计
 
+现已有新的流水线版本，请看 [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
+
 ## 项目简介
 这是一个基于RISC-V-32I指令集的32位多周期CPU设计项目。采用SystemVerilog硬件描述语言实现，支持基础指令系统，包括算术运算、分支跳转以及内存访问操作，实现了指令缓存和内存缓存，ALU在不同阶段执行不同功能，各模块间均通过请求-响应形式通信。
 
