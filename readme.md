@@ -42,10 +42,18 @@ When hazards occur, certain previous stages will be stalled until the hazard is 
   1. Data hazard: If EXECUTE and MEMORY stages write to register addresses that match DECODE stage's read register address, DECODE is stalled.
   2. Control hazard: If DECODE identifies a jump or branch instruction, FETCH is stalled until PC value updates.
      
-## **Cache**:
-  - Implements instruction and data cache mechanisms
-  - Uses AXI protocol for memory communication
-  - Instruction cache supports read-only operations
-  - Data cache supports both read and write operations
-  - Data cache module operation is shown in the diagram below, instruction cache is similar
+## Cache
+Implement an instruction and data cache mechanism, using the AXI protocol to communicate with memory.
+
+The instruction cache supports only read operations, while the data cache supports both read and write operations.
+
+The operation of the data cache module is described in the diagram below, and the instruction cache follows a similar process.
+
+### Control Flow:
+1. Idle, waiting for a valid cache request.
+2. If there is a request, check whether the cache hits.
+3. If it hits, read/write immediately.
+4. If it misses and the cache block to be replaced is dirty, write back the old data and refill with new data from memory.
+5. If no write-back is needed, refill with new data directly from memory.
+6. If it is a write operation, write to the cache.
   <img src="https://github.com/user-attachments/assets/d87043b4-989d-453e-8d69-1aa2a2666901" width="80%">
