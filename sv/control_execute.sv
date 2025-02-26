@@ -95,7 +95,13 @@ import _pkg_riscv_defines::*;
     /************************ FORWARD *****************************/
     // reg file
     assign forward_regs_if.addr = _pre_rd_addr;
-    assign forward_regs_if.data = pip_to_post_if.alu_result;
+    // assign forward_regs_if.data = pip_to_post_if.alu_result;
+    always_comb begin
+        forward_regs_if.data = pip_to_post_if.alu_result;
+        if (_pre_opcode == OP_JALR || _pre_opcode == OP_JAL) begin
+            forward_regs_if.data = _pre_pc + 4;
+        end
+    end
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             forward_regs_if.req <= 0;
@@ -109,7 +115,13 @@ import _pkg_riscv_defines::*;
         end
     end
     // pc
-    assign forward_pc_if.pc = _pre_pc + _pre_imm;
+    // assign forward_pc_if.pc = _pre_pc + _pre_imm;
+    always_comb begin
+        forward_pc_if.pc = _pre_pc + _pre_imm;
+        if (_pre_opcode == OP_JALR) begin
+            forward_pc_if.pc = alu_if.result;
+        end
+    end
     always_comb begin
         forward_pc_if.branch = 0;
         forward_pc_if.valid = 0;
@@ -270,12 +282,12 @@ import _pkg_riscv_defines::*;
                 alu_if.alu_op = ALU_ADD;
             end
 
-            OP_JAL: begin
-                // JAL：PC + imm
-                alu_if.operand1 = _pre_pc;
-                alu_if.operand2 = _pre_imm;
-                alu_if.alu_op = ALU_ADD;
-            end
+            // OP_JAL: begin
+            //     // JAL：PC + imm
+            //     alu_if.operand1 = _pre_pc;
+            //     alu_if.operand2 = _pre_imm;
+            //     alu_if.alu_op = ALU_ADD;
+            // end
 
             OP_JALR: begin
                 // JALR：rs1 + imm

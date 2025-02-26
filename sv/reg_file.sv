@@ -67,7 +67,7 @@ import _pkg_riscv_defines::*;
             for (int i = 0; i < 2**REG_ADDR_WIDTH; i++) begin
                 regs[i] <= '0;
             end
-        end else if (reg_file_if.write_en) begin
+        end else if (reg_file_if.write_en && reg_file_if.rd_addr != '0) begin
             regs[reg_file_if.rd_addr] <= reg_file_if.rd_data;
         end
     end

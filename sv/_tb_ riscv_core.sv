@@ -25,7 +25,7 @@ module _tb_riscv_core();
     always @(posedge clk) begin
         if (instruction == 32'h0000006F) begin  // JAL x0, 0 指令
             $display("Program execution completed");
-            #10;
+            #1000;
             $stop;
         end
     end
