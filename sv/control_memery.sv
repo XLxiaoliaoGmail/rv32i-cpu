@@ -79,6 +79,8 @@ import _pkg_riscv_defines::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             dcache_if.req_valid <= 0;
+        end else if (dcache_if.req_valid) begin
+            dcache_if.req_valid <= 0;
         end else if (~pause && pause_d1) begin
             dcache_if.req_valid <= 1;
         end else if (dcache_if.req_valid && dcache_if.resp_ready) begin
