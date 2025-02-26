@@ -1,5 +1,5 @@
 # rv32i-cpu
 
-详情请看 [mul-cycle branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/mul-cycle).
+现已有新的流水线版本，请看 [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
 
-For more detail, see [mul-cycle branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/mul-cycle).
+There's a new version of the pipeline available. Please check [pipeline-branch](https://github.com/XLxiaoliaoGmail/rv32i-cpu/tree/pipeline).
