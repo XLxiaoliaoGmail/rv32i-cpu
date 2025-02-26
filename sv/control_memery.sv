@@ -76,6 +76,18 @@ import _pkg_riscv_defines::*;
     /************************ DCACHE *****************************/
 
     // dcache_if.req_valid
+    logic need_req_valid;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            need_req_valid <= 0;
+        end else if (dcache_if.req_valid) begin
+            need_req_valid <= 0;
+        end else if (dcache_if.req_valid && dcache_if.resp_ready) begin
+            need_req_valid <= 0;
+        end else if (~pause && pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+            need_req_valid <= 1;
+        end
+    end
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             dcache_if.req_valid <= 0;
@@ -85,7 +97,9 @@ import _pkg_riscv_defines::*;
             dcache_if.req_valid <= 1;
         end else if (dcache_if.req_valid && dcache_if.resp_ready) begin
             dcache_if.req_valid <= 0;
-        end else if (~pause && pip_to_pre_if.valid && pip_to_pre_if.ready) begin
+        end else if (~pause && pip_to_pre_if.valid && pip_to_pre_if.ready && dcache_if.resp_ready) begin
+            dcache_if.req_valid <= 1;
+        end else if (~pause && need_req_valid) begin
             dcache_if.req_valid <= 1;
         end
     end

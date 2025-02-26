@@ -97,7 +97,7 @@ module dcache (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             save_option <= '0;
-        end else if (dcache_if.req_valid) begin
+        end else if (dcache_if.req_valid && dcache_if.resp_ready) begin
             save_option.write_en <= dcache_if.write_en;
             save_option.req_addr <= dcache_if.req_addr;
             save_option.write_data <= dcache_if.write_data;
@@ -264,9 +264,11 @@ module dcache (
     // dcache_if.resp_valid
     always_comb begin
         dcache_if.resp_valid = 1'b0;
-        if (!save_option.write_en && now_state == LOOKUP && some_way_hit) begin
+        if (now_state == LOOKUP && some_way_hit) begin
+        // if (!save_option.write_en && now_state == LOOKUP && some_way_hit) begin
             dcache_if.resp_valid = 1'b1;
-        end else if (!save_option.write_en && axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
+        end else if (axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
+        // end else if (!save_option.write_en && axi_read_if.rvalid && axi_read_if.rready && rx_counter == addr_line_offset) begin
             dcache_if.resp_valid = 1'b1;
         end
     end
@@ -415,6 +417,9 @@ module dcache (
                 for (int j = 0; j < DCACHE_SET_NUM; j++) begin
                     cache_mem[i][j].valid <= 1'b0;
                     cache_mem[i][j].tag <= '0;
+                    for (int k = 0; k < 2**DCACHE_OFFSET_WIDTH; k++) begin
+                        cache_mem[i][j].bytes[k] <= '0;
+                    end
                 end
             end
         end else if (axi_read_if.rlast) begin
